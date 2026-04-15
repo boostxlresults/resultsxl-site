@@ -107,13 +107,13 @@ export function gradeFromScore(score: number): "A" | "B" | "C" | "D" | "F" {
 }
 
 /* ---- Utility: fetch via CORS proxy ---- */
-async function fetchViaProxy(url: string): Promise<{ html: string; status: number; headers: Record<string, string>; loadTime: number }> {
+async function fetchViaProxy(url: string, timeoutMs = 12000): Promise<{ html: string; status: number; headers: Record<string, string>; loadTime: number }> {
   const start = Date.now();
   
   // Try direct fetch first (works for some sites)
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000);
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
     const res = await fetch(url, {
       signal: controller.signal,
       headers: { "User-Agent": "ResultsXL-Scanner/1.0" }
@@ -131,7 +131,7 @@ async function fetchViaProxy(url: string): Promise<{ html: string; status: numbe
   try {
     const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
     const res = await fetch(proxyUrl, { signal: controller.signal });
     clearTimeout(timeout);
     const data = await res.json();
@@ -149,7 +149,7 @@ async function fetchViaProxy(url: string): Promise<{ html: string; status: numbe
   try {
     const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
     const res = await fetch(proxyUrl, { signal: controller.signal });
     clearTimeout(timeout);
     const html = await res.text();
@@ -157,6 +157,46 @@ async function fetchViaProxy(url: string): Promise<{ html: string; status: numbe
     return { html, status: res.status, headers: {}, loadTime };
   } catch {
     return { html: "", status: 0, headers: {}, loadTime: Date.now() - start };
+  }
+}
+
+/* ---- Fast lightweight fetch for sitemaps (shorter timeout) ---- */
+async function fetchText(url: string, timeoutMs = 8000): Promise<string> {
+  try {
+    const result = await fetchViaProxy(url, timeoutMs);
+    return result.html || "";
+  } catch {
+    return "";
+  }
+}
+
+/* ---- Parse all <loc> URLs from a sitemap XML string ---- */
+function parseSitemapLocs(xml: string, domain: string): string[] {
+  const locs: string[] = [];
+  const matches = xml.match(/<loc[^>]*>(.*?)<\/loc>/gi) || [];
+  for (const match of matches) {
+    const raw = match.replace(/<\/?loc[^>]*>/gi, "").trim();
+    // Decode HTML entities
+    const url = raw.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">");
+    try {
+      const parsed = new URL(url);
+      if (parsed.hostname.replace(/^www\./, "") === domain.replace(/^www\./,"")) {
+        locs.push(parsed.pathname + (parsed.search || ""));
+      }
+    } catch { /* ignore */ }
+  }
+  return locs;
+}
+
+/* ---- Discover sitemap URL from robots.txt ---- */
+async function discoverSitemapFromRobots(baseUrl: string): Promise<string | null> {
+  try {
+    const robotsTxt = await fetchText(`${baseUrl}/robots.txt`, 5000);
+    if (!robotsTxt) return null;
+    const match = robotsTxt.match(/^Sitemap:\s*(https?:\/\/[^\s]+)/im);
+    return match ? match[1].trim() : null;
+  } catch {
+    return null;
   }
 }
 
@@ -551,81 +591,155 @@ function analyzeAIReadiness(doc: Document, html: string): ScanCategory {
   return { id: "ai", name: "AI Search Readiness", score: Math.max(0, score), grade: gradeFromScore(Math.max(0, score)), issues, passed };
 }
 
-/* ---- Page Counter ---- */
+/* ---- Page Counter — Sitemap-First Strategy ---- */
 async function countPages(baseUrl: string, html: string): Promise<PageCountResult> {
   const UTILITY_PATTERNS = [
-    /privacy[-_]?policy/i, /terms[-_]?(of[-_]?service|and[-_]?conditions)?/i,
-    /sitemap/i, /404/i, /not[-_]?found/i, /error/i, /login/i, /logout/i,
-    /register/i, /signup/i, /sign[-_]?up/i, /cart/i, /checkout/i,
-    /thank[-_]?you/i, /confirmation/i, /unsubscribe/i, /cookie[-_]?policy/i,
-    /disclaimer/i, /accessibility/i, /robots\.txt/i, /feed/i, /rss/i,
-    /wp[-_]?admin/i, /wp[-_]?login/i, /wp[-_]?json/i, /xmlrpc/i,
-    /cdn[-_]?cgi/i, /\.xml$/i, /\.txt$/i, /\.pdf$/i,
+    /\/privacy[-_]?policy/i, /\/terms[-_]?(of[-_]?service|and[-_]?conditions|of[-_]?use)?/i,
+    /\/sitemap/i, /\/404/i, /\/not[-_]?found/i, /\/error/i,
+    /\/login/i, /\/logout/i, /\/register/i, /\/signup/i, /\/sign[-_]?up/i,
+    /\/cart/i, /\/checkout/i, /\/thank[-_]?you/i, /\/confirmation/i,
+    /\/unsubscribe/i, /\/cookie[-_]?policy/i, /\/disclaimer/i,
+    /\/accessibility[-_]?statement/i, /\/feed/i, /\/rss/i,
+    /\/wp[-_]?admin/i, /\/wp[-_]?login/i, /\/wp[-_]?json/i, /\/xmlrpc/i,
+    /\/cdn[-_]?cgi/i, /\.xml$/i, /\.txt$/i, /\.pdf$/i, /\.jpg$/i, /\.png$/i,
+    /\/tag\//i, /\/author\//i, /\/category\//i, /\/page\/\d/i,
+    /\/search/i, /\/archive/i, /\?/,  // query strings are usually utility/pagination
   ];
 
   const BLOG_PATTERNS = [
-    /\/blog\//i, /\/news\//i, /\/articles?\//i, /\/posts?\//i,
-    /\/insights?\//i, /\/resources?\//i, /\/updates?\//i,
-    /\d{4}\/\d{2}\//i, // date-based URLs
+    /\/blog\//i, /\/blog$/i,
+    /\/news\//i, /\/news$/i,
+    /\/articles?\//i, /\/articles?$/i,
+    /\/posts?\//i,
+    /\/insights?\//i,
+    /\/resources?\//i,
+    /\/updates?\//i,
+    /\/press\//i,
+    /\d{4}\/\d{2}\//i, // date-based URLs like /2023/04/
   ];
 
-  const domain = new URL(baseUrl).hostname;
-  const foundUrls = new Set<string>();
-  const contentUrls: string[] = [];
+  const domain = new URL(baseUrl).hostname.replace(/^www\./, "");
+  const allPaths = new Set<string>();
+
+  /* ================================================================
+     STEP 1: Try sitemap.xml (primary — fastest and most complete)
+     Try common paths in parallel, then follow sitemap index sub-sitemaps
+     ================================================================ */
+  let sitemapFound = false;
+
+  const commonSitemapPaths = [
+    "/sitemap.xml",
+    "/sitemap_index.xml",
+    "/sitemap-index.xml",
+    "/wp-sitemap.xml",
+    "/sitemap/sitemap-index.xml",
+    "/sitemap1.xml",
+    "/post-sitemap.xml",
+    "/page-sitemap.xml",
+  ];
+
+  // Fetch all common sitemap paths in parallel (fast!)
+  const sitemapResults = await Promise.allSettled(
+    commonSitemapPaths.map(path =>
+      fetchText(`${baseUrl}${path}`, 6000).then(xml => ({ path, xml }))
+    )
+  );
+
+  // Collect all valid sitemaps (those containing <loc> or <sitemap>)
+  const validSitemaps: { path: string; xml: string }[] = [];
+  for (const result of sitemapResults) {
+    if (result.status === "fulfilled" && result.value.xml) {
+      const xml = result.value.xml;
+      if (xml.includes("<loc>") || xml.includes("<loc ")) {
+        validSitemaps.push(result.value);
+      }
+    }
+  }
+
+  // Process each valid sitemap
+  for (const { xml } of validSitemaps) {
+    // Check if it's a sitemap index (contains <sitemap> elements pointing to sub-sitemaps)
+    const isSitemapIndex = xml.includes("<sitemapindex") || xml.includes("<sitemap>");
+
+    if (isSitemapIndex) {
+      // Extract sub-sitemap URLs and fetch them in parallel
+      const subSitemapLocs = parseSitemapLocs(xml, domain);
+      // Also grab full URLs for sub-sitemaps that may be on the same domain
+      const subSitemapFullUrls: string[] = [];
+      const subMatches = xml.match(/<loc[^>]*>(.*?)<\/loc>/gi) || [];
+      for (const m of subMatches) {
+        const raw = m.replace(/<\/?loc[^>]*>/gi, "").trim();
+        if (raw.includes(".xml")) subSitemapFullUrls.push(raw);
+      }
+
+      const subResults = await Promise.allSettled(
+        subSitemapFullUrls.slice(0, 20).map(u => fetchText(u, 6000))
+      );
+      for (const sub of subResults) {
+        if (sub.status === "fulfilled" && sub.value) {
+          const locs = parseSitemapLocs(sub.value, domain);
+          locs.forEach(p => allPaths.add(p));
+        }
+      }
+      // Also add any locs directly in the index (some indexes list pages directly)
+      subSitemapLocs.forEach(p => { if (!p.endsWith(".xml")) allPaths.add(p); });
+      sitemapFound = true;
+    } else {
+      // Regular sitemap — parse all <loc> entries
+      const locs = parseSitemapLocs(xml, domain);
+      locs.forEach(p => allPaths.add(p));
+      if (locs.length > 0) sitemapFound = true;
+    }
+  }
+
+  /* ================================================================
+     STEP 2: If no sitemap found yet, check robots.txt for Sitemap: directive
+     ================================================================ */
+  if (!sitemapFound) {
+    const robotsSitemapUrl = await discoverSitemapFromRobots(baseUrl);
+    if (robotsSitemapUrl) {
+      const xml = await fetchText(robotsSitemapUrl, 6000);
+      if (xml) {
+        const locs = parseSitemapLocs(xml, domain);
+        locs.forEach(p => allPaths.add(p));
+        if (locs.length > 0) sitemapFound = true;
+      }
+    }
+  }
+
+  /* ================================================================
+     STEP 3: Fallback — parse links from homepage HTML
+     Used only when no sitemap is available
+     ================================================================ */
+  if (!sitemapFound || allPaths.size < 2) {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, "text/html");
+    const links = Array.from(doc.querySelectorAll("a[href]"));
+    links.forEach(link => {
+      const href = link.getAttribute("href") || "";
+      try {
+        const url = new URL(href, baseUrl);
+        const urlDomain = url.hostname.replace(/^www\./, "");
+        if (urlDomain !== domain) return;
+        const path = url.pathname;
+        if (path === "/" || path === "") return;
+        allPaths.add(path);
+      } catch { /* ignore */ }
+    });
+  }
+
+  /* ================================================================
+     STEP 4: Categorize all discovered paths
+     ================================================================ */
+  const contentUrls: string[] = ["/"]; // homepage always included
   const blogUrls: string[] = [];
   const utilityUrls: string[] = [];
 
-  // Parse links from homepage HTML
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(html, "text/html");
-  const links = Array.from(doc.querySelectorAll("a[href]"));
-  
-  links.forEach(link => {
-    const href = link.getAttribute("href") || "";
-    try {
-      const url = new URL(href, baseUrl);
-      if (url.hostname !== domain) return;
-      const path = url.pathname;
-      if (path === "/" || path === "") return;
-      if (foundUrls.has(path)) return;
-      foundUrls.add(path);
-    } catch { /* ignore */ }
-  });
-
-  // Try to fetch sitemap
-  try {
-    const sitemapUrls = [
-      `${baseUrl}/sitemap.xml`,
-      `${baseUrl}/sitemap_index.xml`,
-      `${baseUrl}/sitemap/`,
-    ];
-    
-    for (const sitemapUrl of sitemapUrls) {
-      try {
-        const result = await fetchViaProxy(sitemapUrl);
-        if (result.html && result.html.includes("<url>")) {
-          // Parse sitemap
-          const urlMatches = result.html.match(/<loc>(.*?)<\/loc>/g) || [];
-          urlMatches.forEach(match => {
-            const url = match.replace(/<\/?loc>/g, "").trim();
-            try {
-              const parsed = new URL(url);
-              if (parsed.hostname === domain) {
-                foundUrls.add(parsed.pathname);
-              }
-            } catch { /* ignore */ }
-          });
-          break; // Found a valid sitemap
-        }
-      } catch { /* continue */ }
-    }
-  } catch { /* ignore */ }
-
-  // Categorize URLs
-  Array.from(foundUrls).forEach(path => {
+  Array.from(allPaths).forEach(path => {
+    if (path === "/") return; // already added homepage
     const isUtility = UTILITY_PATTERNS.some(p => p.test(path));
     const isBlog = BLOG_PATTERNS.some(p => p.test(path));
-    
+
     if (isUtility) {
       utilityUrls.push(path);
     } else if (isBlog) {
@@ -635,15 +749,14 @@ async function countPages(baseUrl: string, html: string): Promise<PageCountResul
     }
   });
 
-  // Add homepage to content
-  contentUrls.unshift("/");
+  const totalRebuildPages = contentUrls.length + blogUrls.length;
 
   return {
-    total: foundUrls.size + 1,
+    total: totalRebuildPages + utilityUrls.length,
     content: contentUrls.length,
     blog: blogUrls.length,
     utility: utilityUrls.length,
-    urls: [...contentUrls, ...blogUrls].slice(0, 50),
+    urls: [...contentUrls, ...blogUrls].slice(0, 100),
   };
 }
 
