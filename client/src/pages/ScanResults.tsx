@@ -8,11 +8,12 @@ import { Link, useLocation } from "wouter";
 import {
   Zap, AlertTriangle, CheckCircle, XCircle, ChevronDown, ChevronUp,
   ArrowRight, RefreshCw, Globe, FileCode, Bot, Smartphone, Shield,
-  BarChart3, Clock, Layers, ExternalLink
+  BarChart3, Clock, Layers, ExternalLink, DollarSign, CreditCard,
+  Calendar, Languages, TrendingUp, Info, Star, ChevronRight, Sparkles
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import type { ScanResult, ScanCategory, ScanIssue } from "@/lib/scanner";
+import type { ScanResult, ScanCategory, ScanIssue, RebuildPricing } from "@/lib/scanner";
 import { gradeFromScore } from "@/lib/scanner";
 
 /* ---- Grade color helpers ---- */
@@ -165,6 +166,226 @@ function CategoryCard({ category }: { category: ScanCategory }) {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+/* ================================================================
+   REBUILD QUOTE COMPONENT
+   ================================================================ */
+function RebuildQuote({ pricing, domain, pageCount }: { pricing: RebuildPricing; domain: string; pageCount: number }) {
+  const [selectedPlan, setSelectedPlan] = useState<"split" | "monthly">("split");
+  const [bilingualSelected, setBilingualSelected] = useState(false);
+  const [aiSeoSelected, setAiSeoSelected] = useState(false);
+
+  const AI_SEO_MONTHLY = 299;
+  const bilingualCost = bilingualSelected ? pricing.bilingualAddonCost : 0;
+  const adjustedTotal = pricing.totalCost + bilingualCost;
+  const adjustedHalf = Math.round(adjustedTotal / 2);
+  const adjustedMonthly = Math.round(adjustedTotal / 12);
+  const showMonthly = adjustedTotal >= 1000;
+  const totalMonthlyWithAiSeo = adjustedMonthly + (aiSeoSelected ? AI_SEO_MONTHLY : 0);
+
+  return (
+    <div className="max-w-4xl mx-auto mb-8">
+      <div className="glass-card rounded-2xl overflow-hidden">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-blue-600/20 to-cyan-500/10 border-b border-white/8 p-6">
+          <div className="flex items-center gap-3 mb-1">
+            <div className="w-9 h-9 rounded-xl bg-blue-500/20 border border-blue-500/30 flex items-center justify-center">
+              <DollarSign className="w-5 h-5 text-blue-400" />
+            </div>
+            <div>
+              <h2 className="text-white font-bold text-lg">Your Rebuild Quote</h2>
+              <p className="text-zinc-500 text-xs">{domain} · {pageCount} pages · {pricing.tierLabel} tier · ${pricing.pricePerPage}/page</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-6 space-y-6">
+
+          {/* Tier callout + next-tier nudge */}
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex-1 p-4 rounded-xl bg-blue-500/5 border border-blue-500/20">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-zinc-400 text-xs font-medium uppercase tracking-wider">Current Tier</span>
+                <span className="text-blue-400 text-xs font-semibold">{pricing.tierLabel}</span>
+              </div>
+              <div className="text-3xl font-black text-white">${pricing.pricePerPage}<span className="text-zinc-500 text-base font-normal">/page</span></div>
+              <div className="text-zinc-400 text-sm mt-1">{pageCount} pages × ${pricing.pricePerPage} = <span className="text-white font-semibold">${pricing.totalCost.toLocaleString()}</span></div>
+            </div>
+            {pricing.nextTierPages !== null && pricing.nextTierSavings !== null && pricing.nextTierSavings > 0 && (
+              <div className="flex-1 p-4 rounded-xl bg-amber-500/5 border border-amber-500/20">
+                <div className="flex items-center gap-2 mb-1">
+                  <TrendingUp className="w-3.5 h-3.5 text-amber-400" />
+                  <span className="text-amber-400 text-xs font-semibold uppercase tracking-wider">Price Break Available</span>
+                </div>
+                <p className="text-zinc-300 text-sm">
+                  Add <span className="text-white font-bold">{pricing.nextTierPages} more page{pricing.nextTierPages > 1 ? "s" : ""}</span> (we can create new blog content) to unlock the next tier and save <span className="text-amber-400 font-bold">${pricing.nextTierSavings.toLocaleString()}</span> on your total.
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Add-ons */}
+          <div className="space-y-3">
+            <p className="text-zinc-400 text-xs font-medium uppercase tracking-wider">Optional Add-Ons</p>
+
+            {/* Bilingual add-on */}
+            {pricing.bilingualAddonCost > 0 ? (
+              <button
+                onClick={() => setBilingualSelected(!bilingualSelected)}
+                className={`w-full flex items-center gap-4 p-4 rounded-xl border transition-all text-left ${
+                  bilingualSelected
+                    ? "bg-cyan-500/10 border-cyan-500/40"
+                    : "bg-white/3 border-white/8 hover:border-white/15"
+                }`}
+              >
+                <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                  bilingualSelected ? "bg-cyan-500 border-cyan-500" : "border-zinc-600"
+                }`}>
+                  {bilingualSelected && <CheckCircle className="w-3 h-3 text-white" />}
+                </div>
+                <Languages className="w-5 h-5 text-cyan-400 flex-shrink-0" />
+                <div className="flex-1">
+                  <div className="text-white font-semibold text-sm">Bilingual Site (English + Spanish)</div>
+                  <div className="text-zinc-500 text-xs">Full /es/ version of every page with contextual language switching</div>
+                </div>
+                <div className="text-cyan-400 font-bold text-sm flex-shrink-0">+$399</div>
+              </button>
+            ) : (
+              <div className="flex items-center gap-4 p-4 rounded-xl bg-cyan-500/5 border border-cyan-500/20">
+                <CheckCircle className="w-5 h-5 text-cyan-400 flex-shrink-0" />
+                <Languages className="w-5 h-5 text-cyan-400 flex-shrink-0" />
+                <div className="flex-1">
+                  <div className="text-white font-semibold text-sm">Bilingual Pages Detected</div>
+                  <div className="text-zinc-500 text-xs">Your site already has bilingual content — we'll rebuild all language versions at no extra charge</div>
+                </div>
+                <div className="text-cyan-400 font-bold text-sm flex-shrink-0">Included</div>
+              </div>
+            )}
+
+            {/* BoostXL AI SEO add-on */}
+            <button
+              onClick={() => setAiSeoSelected(!aiSeoSelected)}
+              className={`w-full flex items-center gap-4 p-4 rounded-xl border transition-all text-left ${
+                aiSeoSelected
+                  ? "bg-purple-500/10 border-purple-500/40"
+                  : "bg-white/3 border-white/8 hover:border-white/15"
+              }`}
+            >
+              <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                aiSeoSelected ? "bg-purple-500 border-purple-500" : "border-zinc-600"
+              }`}>
+                {aiSeoSelected && <CheckCircle className="w-3 h-3 text-white" />}
+              </div>
+              <Sparkles className="w-5 h-5 text-purple-400 flex-shrink-0" />
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-white font-semibold text-sm">BoostXL AI SEO</span>
+                  <span className="px-1.5 py-0.5 rounded text-purple-300 bg-purple-500/20 text-xs font-medium">Monthly</span>
+                </div>
+                <div className="text-zinc-500 text-xs">Ongoing AI search optimization, rank tracking, schema updates, and monthly performance reports</div>
+              </div>
+              <div className="text-purple-400 font-bold text-sm flex-shrink-0">+${AI_SEO_MONTHLY}/mo</div>
+            </button>
+          </div>
+
+          {/* Payment options */}
+          <div className="space-y-3">
+            <p className="text-zinc-400 text-xs font-medium uppercase tracking-wider">Payment Options</p>
+
+            {/* 50/50 split */}
+            <button
+              onClick={() => setSelectedPlan("split")}
+              className={`w-full flex items-center gap-4 p-4 rounded-xl border transition-all text-left ${
+                selectedPlan === "split"
+                  ? "bg-blue-500/10 border-blue-500/40"
+                  : "bg-white/3 border-white/8 hover:border-white/15"
+              }`}
+            >
+              <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                selectedPlan === "split" ? "border-blue-500" : "border-zinc-600"
+              }`}>
+                {selectedPlan === "split" && <div className="w-2 h-2 rounded-full bg-blue-500" />}
+              </div>
+              <CreditCard className="w-5 h-5 text-blue-400 flex-shrink-0" />
+              <div className="flex-1">
+                <div className="text-white font-semibold text-sm">50% Upfront / 50% on Completion</div>
+                <div className="text-zinc-500 text-xs">Pay half to start, half when your new site is ready to launch</div>
+              </div>
+              <div className="text-right flex-shrink-0">
+                <div className="text-white font-bold text-sm">${adjustedHalf.toLocaleString()} now</div>
+                <div className="text-zinc-500 text-xs">${(adjustedTotal - adjustedHalf).toLocaleString()} on completion</div>
+              </div>
+            </button>
+
+            {/* 12-month option */}
+            {showMonthly && (
+              <button
+                onClick={() => setSelectedPlan("monthly")}
+                className={`w-full flex items-center gap-4 p-4 rounded-xl border transition-all text-left ${
+                  selectedPlan === "monthly"
+                    ? "bg-green-500/10 border-green-500/40"
+                    : "bg-white/3 border-white/8 hover:border-white/15"
+                }`}
+              >
+                <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                  selectedPlan === "monthly" ? "border-green-500" : "border-zinc-600"
+                }`}>
+                  {selectedPlan === "monthly" && <div className="w-2 h-2 rounded-full bg-green-500" />}
+                </div>
+                <Calendar className="w-5 h-5 text-green-400 flex-shrink-0" />
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-white font-semibold text-sm">12-Month Payment Plan</span>
+                    <span className="px-1.5 py-0.5 rounded text-green-300 bg-green-500/20 text-xs font-medium">0% Interest</span>
+                  </div>
+                  <div className="text-zinc-500 text-xs">Spread the cost over 12 months with zero interest{aiSeoSelected ? " — combine with BoostXL AI SEO" : ""}</div>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <div className="text-green-400 font-bold text-lg">${totalMonthlyWithAiSeo.toLocaleString()}<span className="text-zinc-500 text-xs font-normal">/mo</span></div>
+                  {aiSeoSelected && (
+                    <div className="text-zinc-500 text-xs">${adjustedMonthly}/mo rebuild + ${AI_SEO_MONTHLY}/mo AI SEO</div>
+                  )}
+                </div>
+              </button>
+            )}
+          </div>
+
+          {/* Summary bar */}
+          <div className="flex flex-col sm:flex-row items-center gap-4 p-4 rounded-xl bg-gradient-to-r from-blue-600/10 to-cyan-500/10 border border-blue-500/20">
+            <div className="flex-1 text-center sm:text-left">
+              <div className="text-zinc-400 text-xs mb-1">Total Rebuild Investment</div>
+              <div className="text-3xl font-black text-white">${adjustedTotal.toLocaleString()}</div>
+              {bilingualSelected && pricing.bilingualAddonCost > 0 && (
+                <div className="text-cyan-400 text-xs mt-0.5">Includes bilingual add-on (+$399)</div>
+              )}
+            </div>
+            {selectedPlan === "split" ? (
+              <div className="text-center sm:text-right">
+                <div className="text-zinc-400 text-xs mb-1">Your first payment</div>
+                <div className="text-2xl font-bold text-blue-400">${adjustedHalf.toLocaleString()}</div>
+                <div className="text-zinc-500 text-xs">then ${(adjustedTotal - adjustedHalf).toLocaleString()} on completion</div>
+              </div>
+            ) : (
+              <div className="text-center sm:text-right">
+                <div className="text-zinc-400 text-xs mb-1">Monthly payment</div>
+                <div className="text-2xl font-bold text-green-400">${totalMonthlyWithAiSeo.toLocaleString()}<span className="text-zinc-500 text-sm font-normal">/mo</span></div>
+                <div className="text-zinc-500 text-xs">12 months · 0% interest</div>
+              </div>
+            )}
+            <Link
+              href={`/get-started?pages=${pageCount}&cost=${adjustedTotal}&plan=${selectedPlan}&bilingual=${bilingualSelected}&aiSeo=${aiSeoSelected}`}
+              className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 text-white font-semibold text-sm hover:from-blue-500 hover:to-cyan-400 transition-all shadow-lg hover:shadow-blue-500/25 flex-shrink-0"
+            >
+              <Zap className="w-4 h-4" />
+              Get Started
+            </Link>
+          </div>
+
+        </div>
+      </div>
     </div>
   );
 }
@@ -393,7 +614,7 @@ export default function ScanResults() {
             <div className="glass-card rounded-2xl p-6">
               <h2 className="text-white font-bold text-lg mb-6 flex items-center gap-2">
                 <Layers className="w-5 h-5 text-blue-400" />
-                Page Counter — Rebuild Scope
+                Page Counter — Full Rebuild Scope
               </h2>
               <div className="grid grid-cols-3 gap-4 mb-6">
                 <div className="text-center p-4 rounded-xl bg-blue-500/5 border border-blue-500/15">
@@ -409,16 +630,19 @@ export default function ScanResults() {
                 <div className="text-center p-4 rounded-xl bg-white/3 border border-white/8">
                   <div className="text-3xl font-bold text-zinc-400">{result.pageCount.utility}</div>
                   <div className="text-zinc-400 text-xs mt-1">Utility Pages</div>
-                  <div className="text-zinc-600 text-xs">Privacy, Terms, Sitemap</div>
+                  <div className="text-zinc-600 text-xs">Privacy, Terms, Sitemap (excluded)</div>
                 </div>
               </div>
               <div className="p-4 rounded-xl bg-gradient-to-r from-blue-600/10 to-cyan-500/10 border border-blue-500/20">
                 <p className="text-zinc-300 text-sm">
-                  <span className="text-white font-semibold">{result.rebuildRecommendation.estimatedPages} pages</span> would be rebuilt and fully optimized — content pages + blog posts, excluding utility pages. Each page gets schema markup, optimized content, and AI search signals.
+                  <span className="text-white font-semibold">{result.rebuildRecommendation.estimatedPages} pages</span> will be rebuilt and fully AI-SEO optimized — every content page and blog post gets schema markup, enhanced content, and AI search signals. Utility pages (privacy, terms, sitemap) are excluded from rebuild pricing.
                 </p>
               </div>
             </div>
           </div>
+
+          {/* ---- Rebuild Quote / Pricing ---- */}
+          <RebuildQuote pricing={result.rebuildRecommendation.pricing} domain={result.domain} pageCount={result.rebuildRecommendation.estimatedPages} />
 
           {/* ---- Category Detail Cards ---- */}
           <div className="max-w-4xl mx-auto mb-12">

@@ -45,6 +45,30 @@ export interface ScanResult {
   loadTimeEstimate: string;
 }
 
+export interface PricingTier {
+  label: string;          // e.g. "0–19 pages"
+  pricePerPage: number;   // e.g. 100
+  totalPages: number;
+  basePrice: number;      // pricePerPage * totalPages
+  nextTierPages: number | null;  // pages needed to reach next tier (or null if already at best)
+  nextTierSavings: number | null; // savings if they add pages to hit next tier
+}
+
+export interface RebuildPricing {
+  totalPages: number;
+  pricePerPage: number;
+  tierLabel: string;
+  totalCost: number;
+  halfUpfront: number;
+  halfOnCompletion: number;
+  monthlyPayment: number | null;  // null if total < $1000
+  showMonthlyOption: boolean;
+  nextTierPages: number | null;
+  nextTierSavings: number | null;
+  hasBilingualPages: boolean;     // detected from scan
+  bilingualAddonCost: number;     // 399 if no bilingual detected, 0 if already bilingual
+}
+
 export interface RebuildRecommendation {
   urgency: "critical" | "high" | "medium" | "low";
   summary: string;
@@ -52,6 +76,7 @@ export interface RebuildRecommendation {
   estimatedPages: number;
   estimatedTimeline: string;
   keyBenefits: string[];
+  pricing: RebuildPricing;
 }
 
 /* ---- Utility: normalize URL ---- */
@@ -622,8 +647,71 @@ async function countPages(baseUrl: string, html: string): Promise<PageCountResul
   };
 }
 
+/* ---- Pricing Tiers ---- */
+const PRICING_TIERS = [
+  { min: 0,  max: 19,  pricePerPage: 100, label: "0–19 pages" },
+  { min: 20, max: 39,  pricePerPage: 75,  label: "20–39 pages" },
+  { min: 40, max: 59,  pricePerPage: 60,  label: "40–59 pages" },
+  { min: 60, max: 79,  pricePerPage: 50,  label: "60–79 pages" },
+  { min: 80, max: Infinity, pricePerPage: 40, label: "80+ pages" },
+];
+
+function calculatePricing(totalPages: number, hasBilingualPages: boolean): RebuildPricing {
+  const tier = PRICING_TIERS.find(t => totalPages >= t.min && totalPages <= t.max) || PRICING_TIERS[PRICING_TIERS.length - 1];
+  const pricePerPage = tier.pricePerPage;
+  const totalCost = totalPages * pricePerPage;
+  const halfUpfront = Math.round(totalCost / 2);
+  const halfOnCompletion = totalCost - halfUpfront;
+  const showMonthlyOption = totalCost >= 1000;
+  const monthlyPayment = showMonthlyOption ? Math.round(totalCost / 12) : null;
+
+  // Next tier: find the next tier break above current page count
+  const nextTier = PRICING_TIERS.find(t => t.min > totalPages);
+  let nextTierPages: number | null = null;
+  let nextTierSavings: number | null = null;
+  if (nextTier && tier.pricePerPage > nextTier.pricePerPage) {
+    const pagesNeeded = nextTier.min - totalPages;
+    const currentCost = totalPages * tier.pricePerPage;
+    const newTotalPages = nextTier.min;
+    const newCost = newTotalPages * nextTier.pricePerPage;
+    // Savings = what they'd pay at current rate for those extra pages vs new rate for all pages
+    const costAtCurrentRate = newTotalPages * tier.pricePerPage;
+    nextTierPages = pagesNeeded;
+    nextTierSavings = costAtCurrentRate - newCost;
+  }
+
+  const bilingualAddonCost = hasBilingualPages ? 0 : 399;
+
+  return {
+    totalPages,
+    pricePerPage,
+    tierLabel: tier.label,
+    totalCost,
+    halfUpfront,
+    halfOnCompletion,
+    monthlyPayment,
+    showMonthlyOption,
+    nextTierPages,
+    nextTierSavings,
+    hasBilingualPages,
+    bilingualAddonCost,
+  };
+}
+
+/* ---- Detect Bilingual Pages ---- */
+function detectBilingual(urls: string[], html: string): boolean {
+  // Check URL patterns for /es/, /en/, /fr/, etc.
+  const bilingualUrlPatterns = [/\/es\//i, /\/en\//i, /\/fr\//i, /\/pt\//i, /\/es$/i, /\?lang=/i, /\/spanish/i, /\/espanol/i];
+  const hasSpanishUrls = urls.some(u => bilingualUrlPatterns.some(p => p.test(u)));
+  // Check HTML for hreflang attributes
+  const hasHreflang = html.includes('hreflang=') || html.includes('hreflang =');
+  // Check for lang switcher patterns
+  const hasLangSwitcher = /lang[-_]?switch|language[-_]?select|translate/i.test(html);
+  return hasSpanishUrls || hasHreflang || hasLangSwitcher;
+}
+
 /* ---- Build Rebuild Recommendation ---- */
-function buildRecommendation(categories: ScanCategory[], pageCount: PageCountResult): RebuildRecommendation {
+function buildRecommendation(categories: ScanCategory[], pageCount: PageCountResult, html = ""): RebuildRecommendation {
   const avgScore = categories.reduce((sum, c) => sum + c.score, 0) / categories.length;
   const criticalIssues = categories.flatMap(c => c.issues.filter(i => i.severity === "critical"));
   const allIssues = categories.flatMap(c => c.issues);
@@ -651,7 +739,8 @@ function buildRecommendation(categories: ScanCategory[], pageCount: PageCountRes
     topIssues.push(...warnings.map(i => i.title));
   }
 
-  const estimatedPages = Math.max(pageCount.content + pageCount.blog, 5);
+  // ALL content + blog pages are rebuilt — this is the full rebuild scope
+  const estimatedPages = Math.max(pageCount.content + pageCount.blog, 1);
   const estimatedTimeline = estimatedPages <= 10 ? "3–5 days" : estimatedPages <= 25 ? "1–2 weeks" : "2–3 weeks";
 
   const keyBenefits = [
@@ -660,10 +749,13 @@ function buildRecommendation(categories: ScanCategory[], pageCount: PageCountRes
     "Schema markup on every page type",
     "llms.txt AI search optimization",
     "Zero broken backlinks — full redirect map",
-    `${estimatedPages} pages rebuilt and optimized`,
+    `${estimatedPages} pages rebuilt and AI-SEO optimized`,
   ];
 
-  return { urgency, summary, topIssues, estimatedPages, estimatedTimeline, keyBenefits };
+  const hasBilingual = detectBilingual(pageCount.urls, html);
+  const pricing = calculatePricing(estimatedPages, hasBilingual);
+
+  return { urgency, summary, topIssues, estimatedPages, estimatedTimeline, keyBenefits, pricing };
 }
 
 /* ================================================================
@@ -705,14 +797,14 @@ export async function scanWebsite(
   onProgress("Checking AI search readiness...", 85);
   const aiCategory = analyzeAIReadiness(doc, html);
 
-  onProgress("Counting content pages...", 92);
+  onProgress("Counting all pages & blog posts...", 92);
   const pageCount = await countPages(url, html);
 
   onProgress("Building your report card...", 98);
   const categories = [performanceCategory, seoCategory, schemaCategory, aiCategory, mobileCategory, accessibilityCategory];
   const overallScore = Math.round(categories.reduce((sum, c) => sum + c.score, 0) / categories.length);
   const overallGrade = gradeFromScore(overallScore);
-  const rebuildRecommendation = buildRecommendation(categories, pageCount);
+  const rebuildRecommendation = buildRecommendation(categories, pageCount, html);
 
   // Estimate load time for display
   const loadTimeEstimate = loadTime > 0

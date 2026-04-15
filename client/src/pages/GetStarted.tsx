@@ -2,8 +2,8 @@
    ResultsXL Get Started / Contact Page — Dark Technical Premium
    ============================================================= */
 
-import { useState } from "react";
-import { CheckCircle, Zap, ArrowRight, Mail, Phone, Clock } from "lucide-react";
+import { useState, useEffect } from "react";
+import { CheckCircle, Zap, ArrowRight, Mail, Phone, Clock, DollarSign, Calendar, CreditCard, Languages, Sparkles } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
@@ -19,6 +19,14 @@ const industries = [
   "Veterinarian", "Auto Shop", "Restaurant", "Contractor", "Other"
 ];
 
+interface QuoteContext {
+  pages: number;
+  cost: number;
+  plan: string;
+  bilingual: boolean;
+  aiSeo: boolean;
+}
+
 export default function GetStarted() {
   const [formData, setFormData] = useState({
     name: "",
@@ -30,6 +38,29 @@ export default function GetStarted() {
   });
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [quote, setQuote] = useState<QuoteContext | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const pages = parseInt(params.get("pages") || "0");
+    const cost = parseInt(params.get("cost") || "0");
+    const plan = params.get("plan") || "split";
+    const bilingual = params.get("bilingual") === "true";
+    const aiSeo = params.get("aiSeo") === "true";
+    // Also pre-fill website from sessionStorage scan result
+    const stored = sessionStorage.getItem("scanResult");
+    if (stored) {
+      try {
+        const result = JSON.parse(stored);
+        if (result.domain && !formData.website) {
+          setFormData(prev => ({ ...prev, website: result.domain }));
+        }
+      } catch { /* ignore */ }
+    }
+    if (pages > 0 && cost > 0) {
+      setQuote({ pages, cost, plan, bilingual, aiSeo });
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,13 +72,20 @@ export default function GetStarted() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           access_key: "YOUR_WEB3FORMS_KEY",
-          subject: `ResultsXL Rebuild Request — ${formData.name} (${formData.website})`,
+          subject: `ResultsXL Rebuild Request — ${formData.name} (${formData.website})${quote ? ` — ${quote.pages} pages / $${quote.cost.toLocaleString()}` : ""}`,
           from_name: formData.name,
           email: formData.email,
           phone: formData.phone,
           website: formData.website,
           industry: formData.industry,
           message: formData.message,
+          ...(quote ? {
+            rebuild_pages: quote.pages,
+            rebuild_cost: `$${quote.cost.toLocaleString()}`,
+            payment_plan: quote.plan === "monthly" ? `12-month plan ($${Math.round(quote.cost / 12)}/mo)` : "50/50 split",
+            bilingual_addon: quote.bilingual ? "Yes (+$399)" : "No",
+            boostxl_ai_seo: quote.aiSeo ? "Yes (+$299/mo)" : "No",
+          } : {}),
         }),
       });
       if (response.ok) {
@@ -81,6 +119,71 @@ export default function GetStarted() {
               Tell us about your current site. We'll run our discovery scan, prepare a scope summary, and reach out within one business day.
             </p>
           </div>
+
+          {/* Quote context banner from scanner */}
+          {quote && (
+            <div className="max-w-5xl mx-auto mb-10">
+              <div className="glass-card rounded-2xl p-5 border border-blue-500/20 bg-gradient-to-r from-blue-600/10 to-cyan-500/5">
+                <div className="flex items-center gap-3 mb-4">
+                  <DollarSign className="w-5 h-5 text-blue-400" />
+                  <h3 className="text-white font-semibold">Your Rebuild Quote Summary</h3>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  <div className="text-center p-3 rounded-xl bg-white/5">
+                    <div className="text-2xl font-bold text-white">{quote.pages}</div>
+                    <div className="text-zinc-500 text-xs mt-0.5">Pages to Rebuild</div>
+                  </div>
+                  <div className="text-center p-3 rounded-xl bg-white/5">
+                    <div className="text-2xl font-bold text-white">${quote.cost.toLocaleString()}</div>
+                    <div className="text-zinc-500 text-xs mt-0.5">Total Investment</div>
+                  </div>
+                  <div className="text-center p-3 rounded-xl bg-white/5">
+                    {quote.plan === "monthly" ? (
+                      <>
+                        <div className="flex items-center justify-center gap-1">
+                          <Calendar className="w-4 h-4 text-green-400" />
+                          <span className="text-green-400 font-bold text-sm">12-Month Plan</span>
+                        </div>
+                        <div className="text-zinc-500 text-xs mt-0.5">${Math.round(quote.cost / 12)}/mo · 0% interest</div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex items-center justify-center gap-1">
+                          <CreditCard className="w-4 h-4 text-blue-400" />
+                          <span className="text-blue-400 font-bold text-sm">50/50 Split</span>
+                        </div>
+                        <div className="text-zinc-500 text-xs mt-0.5">${Math.round(quote.cost / 2)} upfront</div>
+                      </>
+                    )}
+                  </div>
+                  <div className="text-center p-3 rounded-xl bg-white/5">
+                    {quote.bilingual ? (
+                      <>
+                        <div className="flex items-center justify-center gap-1">
+                          <Languages className="w-4 h-4 text-cyan-400" />
+                          <span className="text-cyan-400 font-bold text-sm">Bilingual</span>
+                        </div>
+                        <div className="text-zinc-500 text-xs mt-0.5">EN + ES included</div>
+                      </>
+                    ) : quote.aiSeo ? (
+                      <>
+                        <div className="flex items-center justify-center gap-1">
+                          <Sparkles className="w-4 h-4 text-purple-400" />
+                          <span className="text-purple-400 font-bold text-sm">BoostXL AI SEO</span>
+                        </div>
+                        <div className="text-zinc-500 text-xs mt-0.5">+$299/mo add-on</div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="text-zinc-400 font-bold text-sm">Standard</div>
+                        <div className="text-zinc-500 text-xs mt-0.5">No add-ons selected</div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 max-w-5xl mx-auto">
             {/* Left: Process steps */}
