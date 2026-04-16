@@ -13,10 +13,11 @@ const scanSteps = [
   { icon: <Globe size={18} />, label: "Fetching your website" },
   { icon: <Search size={18} />, label: "Analyzing SEO signals" },
   { icon: <FileCode size={18} />, label: "Auditing schema markup" },
-  { icon: <Bot size={18} />, label: "Checking AI readiness" },
+  { icon: <Zap size={18} />, label: "Checking performance metrics" },
   { icon: <Smartphone size={18} />, label: "Testing mobile experience" },
   { icon: <Shield size={18} />, label: "Evaluating accessibility" },
-  { icon: <Zap size={18} />, label: "Counting content pages via sitemap" },
+  { icon: <Bot size={18} />, label: "Checking AI search readiness" },
+  { icon: <Globe size={18} />, label: "Counting content pages via sitemap" },
 ];
 
 export default function ScanPage() {
@@ -48,8 +49,19 @@ export default function ScanPage() {
       const result = await scanWebsite(scanUrl, (step, prog) => {
         setCurrentStep(step);
         setProgress(prog);
-        const stepIndex = Math.floor((prog / 100) * scanSteps.length);
-        setCompletedSteps(Array.from({ length: stepIndex }, (_, i) => i));
+        // Map progress % to completed steps:
+        // 0-15: fetching (step 0 active)
+        // 28+: step 0 done, step 1 (SEO) active
+        // 42+: step 1 done, step 2 (schema) active
+        // 54+: step 2 done, step 3 (performance) active
+        // 65+: step 3 done, step 4 (mobile) active
+        // 75+: step 4 done, step 5 (accessibility) active
+        // 84+: step 5 done, step 6 (AI) active  
+        // 92+: step 6 done, step 7 (pages) active
+        // 98+: all done
+        const thresholds = [28, 42, 54, 65, 75, 84, 92, 98];
+        const completed = thresholds.filter(t => prog >= t).length;
+        setCompletedSteps(Array.from({ length: completed }, (_, i) => i));
       });
 
       sessionStorage.setItem("scanResult", JSON.stringify(result));
@@ -253,7 +265,7 @@ export default function ScanPage() {
               <div style={{ maxWidth: "380px", margin: "0 auto", display: "flex", flexDirection: "column", gap: "0.625rem" }}>
                 {scanSteps.map((step, i) => {
                   const isComplete = completedSteps.includes(i);
-                  const isCurrent = !isComplete && progress > (i / scanSteps.length) * 100;
+                  const isCurrent = !isComplete && completedSteps.length === i;
                   return (
                     <div key={i} style={{
                       display: "flex", alignItems: "center", gap: "0.75rem",

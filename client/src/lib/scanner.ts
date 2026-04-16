@@ -127,7 +127,10 @@ async function fetchViaProxy(url: string, timeoutMs = 15000): Promise<{ html: st
       }
       const text = await res.text();
       // Accept if we got actual HTML content (even on non-200 status)
-      if (text && text.length > 100 && !text.includes('"error"')) {
+      // Only reject if it looks like a pure JSON error object (starts with { and has "error" key)
+      const trimmed = text.trimStart();
+      const isJsonError = trimmed.startsWith('{') && trimmed.includes('"error"') && !trimmed.includes('<html') && !trimmed.includes('<body') && !trimmed.includes('<div');
+      if (text && text.length > 100 && !isJsonError) {
         const headers: Record<string, string> = {};
         res.headers.forEach((v, k) => { headers[k] = v; });
         return { html: text, status: res.status, headers };
@@ -962,6 +965,8 @@ function buildRecommendation(categories: ScanCategory[], pageCount: PageCountRes
 /* ================================================================
    MAIN SCAN FUNCTION
    ================================================================ */
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 export async function scanWebsite(
   inputUrl: string,
   onProgress: (step: string, progress: number) => void
@@ -969,39 +974,47 @@ export async function scanWebsite(
   const url = normalizeUrl(inputUrl);
   const domain = extractDomain(url);
 
-  onProgress("Fetching your website...", 10);
+  onProgress("Fetching your website...", 5);
   const { html, status, headers, loadTime } = await fetchViaProxy(url);
   
   if (!html && status === 0) {
     throw new Error(`Could not reach ${domain}. Please check the URL and try again.`);
   }
 
-  onProgress("Parsing HTML structure...", 20);
+  onProgress("Fetching your website...", 15);
+  await sleep(600);
+
+  onProgress("Analyzing SEO signals...", 28);
   const doc = parseHtml(html);
   const techStack = detectTechStack(html, headers);
-
-  onProgress("Analyzing SEO signals...", 35);
   const seoCategory = analyzeSEO(doc, html);
+  await sleep(700);
 
-  onProgress("Auditing schema markup...", 50);
+  onProgress("Auditing schema markup...", 42);
   const schemaCategory = analyzeSchema(doc, html);
+  await sleep(650);
 
-  onProgress("Checking performance metrics...", 60);
+  onProgress("Checking performance metrics...", 54);
   const performanceCategory = analyzePerformance(doc, html, loadTime);
+  await sleep(600);
 
-  onProgress("Testing mobile experience...", 70);
+  onProgress("Testing mobile experience...", 65);
   const mobileCategory = analyzeMobile(doc, html);
+  await sleep(650);
 
-  onProgress("Evaluating accessibility...", 78);
+  onProgress("Evaluating accessibility...", 75);
   const accessibilityCategory = analyzeAccessibility(doc, html);
+  await sleep(600);
 
-  onProgress("Checking AI search readiness...", 85);
+  onProgress("Checking AI search readiness...", 84);
   const aiCategory = analyzeAIReadiness(doc, html);
+  await sleep(700);
 
   onProgress("Counting all pages & blog posts...", 92);
   const pageCount = await countPages(url, html);
 
   onProgress("Building your report card...", 98);
+  await sleep(500);
   const categories = [performanceCategory, seoCategory, schemaCategory, aiCategory, mobileCategory, accessibilityCategory];
   const overallScore = Math.round(categories.reduce((sum, c) => sum + c.score, 0) / categories.length);
   const overallGrade = gradeFromScore(overallScore);
