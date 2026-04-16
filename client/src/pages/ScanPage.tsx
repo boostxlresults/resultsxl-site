@@ -1,29 +1,26 @@
-/* =============================================================
-   ResultsXL Scan Page — Website Scanner Input + Progress
-   Dark Technical Premium "The Engine Room"
-   ============================================================= */
+/* ============================================================
+   ResultsXL Scan Page — SEMrush-style bright white design
+   ============================================================ */
 
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { Zap, CheckCircle, Globe, Search, FileCode, Bot, Smartphone, Shield } from "lucide-react";
+import { Zap, CheckCircle, Globe, Search, FileCode, Bot, Smartphone, Shield, AlertCircle } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { scanWebsite } from "@/lib/scanner";
 
-const SCANNER_BG = "https://d2xsxph8kpxj0f.cloudfront.net/310519663364333705/RaDGhJbVxNh92QwrbqDT8m/resultsxl-scanner-bg_cd11731b.png";
-
 const scanSteps = [
-  { icon: <Globe className="w-5 h-5" />, label: "Fetching your website" },
-  { icon: <Search className="w-5 h-5" />, label: "Analyzing SEO signals" },
-  { icon: <FileCode className="w-5 h-5" />, label: "Auditing schema markup" },
-  { icon: <Bot className="w-5 h-5" />, label: "Checking AI readiness" },
-  { icon: <Smartphone className="w-5 h-5" />, label: "Testing mobile experience" },
-  { icon: <Shield className="w-5 h-5" />, label: "Evaluating accessibility" },
-  { icon: <Zap className="w-5 h-5" />, label: "Counting content pages" },
+  { icon: <Globe size={18} />, label: "Fetching your website" },
+  { icon: <Search size={18} />, label: "Analyzing SEO signals" },
+  { icon: <FileCode size={18} />, label: "Auditing schema markup" },
+  { icon: <Bot size={18} />, label: "Checking AI readiness" },
+  { icon: <Smartphone size={18} />, label: "Testing mobile experience" },
+  { icon: <Shield size={18} />, label: "Evaluating accessibility" },
+  { icon: <Zap size={18} />, label: "Counting content pages via sitemap" },
 ];
 
 export default function ScanPage() {
-  const [location, navigate] = useLocation();
+  const [, navigate] = useLocation();
   const [url, setUrl] = useState("");
   const [scanning, setScanning] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -31,38 +28,30 @@ export default function ScanPage() {
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
   const [error, setError] = useState("");
 
-  // Check for URL param on mount
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const urlParam = params.get("url");
     if (urlParam) {
       setUrl(urlParam);
-      // Auto-start scan
       startScan(urlParam);
     }
   }, []);
 
   const startScan = async (scanUrl: string) => {
     if (!scanUrl.trim()) return;
-    
     setScanning(true);
     setError("");
     setProgress(0);
     setCompletedSteps([]);
-    
+
     try {
-      const result = await scanWebsite(
-        scanUrl,
-        (step, prog) => {
-          setCurrentStep(step);
-          setProgress(prog);
-          // Mark steps as complete based on progress
-          const stepIndex = Math.floor((prog / 100) * scanSteps.length);
-          setCompletedSteps(Array.from({ length: stepIndex }, (_, i) => i));
-        }
-      );
-      
-      // Store result in sessionStorage and navigate
+      const result = await scanWebsite(scanUrl, (step, prog) => {
+        setCurrentStep(step);
+        setProgress(prog);
+        const stepIndex = Math.floor((prog / 100) * scanSteps.length);
+        setCompletedSteps(Array.from({ length: stepIndex }, (_, i) => i));
+      });
+
       sessionStorage.setItem("scanResult", JSON.stringify(result));
       navigate(`/results?domain=${encodeURIComponent(result.domain)}`);
     } catch (err) {
@@ -77,157 +66,241 @@ export default function ScanPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#09090B] text-white">
+    <div style={{ background: "white", minHeight: "100vh", fontFamily: "Inter, sans-serif", color: "#0D0D2B" }}>
       <Navbar />
 
-      <div className="relative min-h-screen flex items-center justify-center pt-16 overflow-hidden">
-        {/* Background */}
-        <div className="absolute inset-0">
-          <img src={SCANNER_BG} alt="" className="w-full h-full object-cover opacity-20" />
-          <div className="absolute inset-0 bg-gradient-to-b from-[#09090B]/80 via-[#09090B]/60 to-[#09090B]" />
-        </div>
+      <div style={{ minHeight: "calc(100vh - 72px)", display: "flex", alignItems: "center", justifyContent: "center", padding: "4rem 1rem" }}>
+        <div style={{ width: "100%", maxWidth: "640px" }}>
+          {!scanning ? (
+            /* ---- Input State ---- */
+            <div style={{ textAlign: "center" }}>
+              <div style={{
+                display: "inline-flex", alignItems: "center", gap: "8px",
+                background: "#FFF0EB", color: "#FF642D",
+                fontWeight: 600, fontSize: "0.875rem",
+                padding: "0.375rem 1rem", borderRadius: "100px",
+                marginBottom: "1.75rem",
+                border: "1px solid #FFD5C2",
+              }}>
+                <Zap size={14} fill="#FF642D" />
+                Free Website Rebuild Scanner
+              </div>
 
-        {/* Glow */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-blue-600/8 rounded-full blur-3xl pointer-events-none" />
+              <h1 style={{
+                fontSize: "clamp(2rem, 5vw, 3.25rem)",
+                fontWeight: 900,
+                lineHeight: 1.1,
+                letterSpacing: "-0.03em",
+                color: "#0D0D2B",
+                marginBottom: "1.25rem",
+              }}>
+                See exactly what's<br />
+                <span style={{ color: "#FF642D" }}>holding your site back.</span>
+              </h1>
 
-        <div className="container relative z-10 py-24">
-          <div className="max-w-2xl mx-auto">
-            {!scanning ? (
-              /* ---- Input State ---- */
-              <div className="text-center">
-                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-sm font-medium mb-8">
-                  <Zap className="w-3.5 h-3.5" />
-                  Free Website Rebuild Scanner
-                </div>
+              <p style={{ fontSize: "1.125rem", color: "#4A4A6A", lineHeight: 1.7, marginBottom: "2.5rem" }}>
+                Enter your website URL for a free analysis of performance, SEO, schema markup, AI readiness, mobile experience, and a full page count.
+              </p>
 
-                <h1 className="text-4xl md:text-6xl font-bold mb-6">
-                  See exactly what's<br />
-                  <span className="gradient-text">holding your site back.</span>
-                </h1>
-
-                <p className="text-zinc-400 text-xl mb-10 leading-relaxed">
-                  Enter your website URL for a free analysis of performance, SEO, schema markup, AI readiness, mobile experience, and a full page count.
-                </p>
-
-                <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3 mb-6">
-                  <div className="relative flex-1">
-                    <Globe className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
-                    <input
-                      type="text"
-                      value={url}
-                      onChange={(e) => setUrl(e.target.value)}
-                      placeholder="yourwebsite.com"
-                      className="w-full pl-11 pr-4 py-4 rounded-xl bg-white/5 border border-white/15 text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500/60 focus:bg-white/8 transition-all text-base"
-                    />
+              <form onSubmit={handleSubmit} style={{ marginBottom: "1rem" }}>
+                <div style={{
+                  display: "flex",
+                  background: "white",
+                  border: "2px solid #E5E5EA",
+                  borderRadius: "12px",
+                  overflow: "hidden",
+                  boxShadow: "0 4px 24px rgba(0,0,0,0.07)",
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", paddingLeft: "1rem", color: "#9999AA", flexShrink: 0 }}>
+                    <Globe size={18} />
                   </div>
+                  <input
+                    type="text"
+                    value={url}
+                    onChange={(e) => setUrl(e.target.value)}
+                    placeholder="yourwebsite.com"
+                    style={{
+                      flex: 1,
+                      padding: "1rem 0.75rem",
+                      fontSize: "1.0625rem",
+                      border: "none",
+                      outline: "none",
+                      fontFamily: "Inter, sans-serif",
+                      color: "#0D0D2B",
+                      background: "transparent",
+                    }}
+                  />
                   <button
                     type="submit"
-                    className="px-8 py-4 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 text-white font-semibold hover:from-blue-500 hover:to-cyan-400 transition-all shadow-lg hover:shadow-blue-500/30 flex items-center justify-center gap-2 whitespace-nowrap"
+                    style={{
+                      display: "flex", alignItems: "center", gap: "8px",
+                      background: "#FF642D",
+                      color: "white",
+                      fontWeight: 700,
+                      fontSize: "1rem",
+                      padding: "0.875rem 1.5rem",
+                      border: "none",
+                      cursor: "pointer",
+                      whiteSpace: "nowrap",
+                      fontFamily: "Inter, sans-serif",
+                      flexShrink: 0,
+                    }}
                   >
-                    <Zap className="w-4 h-4" />
+                    <Zap size={16} />
                     Scan Now
                   </button>
-                </form>
+                </div>
+              </form>
 
-                {error && (
-                  <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
-                    {error}
+              {error && (
+                <div style={{
+                  display: "flex", alignItems: "flex-start", gap: "10px",
+                  background: "#FEF2F2",
+                  border: "1px solid #FECACA",
+                  borderRadius: "10px",
+                  padding: "1rem 1.25rem",
+                  marginBottom: "1.25rem",
+                  textAlign: "left",
+                  color: "#DC2626",
+                  fontSize: "0.9375rem",
+                }}>
+                  <AlertCircle size={18} style={{ flexShrink: 0, marginTop: "1px" }} />
+                  {error}
+                </div>
+              )}
+
+              <p style={{ fontSize: "0.875rem", color: "#9999AA", marginBottom: "3rem" }}>
+                100% Free · No credit card · No signup required · Results in ~30 seconds
+              </p>
+
+              {/* What we scan */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "0.75rem" }}>
+                {[
+                  { icon: <Search size={16} color="#FF642D" />, label: "SEO Analysis" },
+                  { icon: <FileCode size={16} color="#FF642D" />, label: "Schema Audit" },
+                  { icon: <Bot size={16} color="#FF642D" />, label: "AI Readiness" },
+                  { icon: <Zap size={16} color="#FF642D" />, label: "Performance" },
+                  { icon: <Smartphone size={16} color="#FF642D" />, label: "Mobile Check" },
+                  { icon: <Shield size={16} color="#FF642D" />, label: "Page Counter" },
+                ].map((item) => (
+                  <div key={item.label} style={{
+                    background: "#F7F7FA",
+                    border: "1px solid #E5E5EA",
+                    borderRadius: "10px",
+                    padding: "0.875rem 1rem",
+                    display: "flex", alignItems: "center", gap: "0.625rem",
+                  }}>
+                    {item.icon}
+                    <span style={{ fontSize: "0.9rem", fontWeight: 600, color: "#0D0D2B" }}>{item.label}</span>
                   </div>
-                )}
-
-                <p className="text-zinc-500 text-sm mb-12">
-                  100% Free · No credit card · No signup required
-                </p>
-
-                {/* What we scan */}
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  {[
-                    { icon: <Search className="w-4 h-4" />, label: "SEO Analysis" },
-                    { icon: <FileCode className="w-4 h-4" />, label: "Schema Audit" },
-                    { icon: <Bot className="w-4 h-4" />, label: "AI Readiness" },
-                    { icon: <Zap className="w-4 h-4" />, label: "Performance" },
-                    { icon: <Smartphone className="w-4 h-4" />, label: "Mobile Check" },
-                    { icon: <Shield className="w-4 h-4" />, label: "Page Counter" },
-                  ].map((item) => (
-                    <div key={item.label} className="glass-card rounded-xl p-3 flex items-center gap-2.5">
-                      <div className="text-blue-400">{item.icon}</div>
-                      <span className="text-zinc-300 text-sm font-medium">{item.label}</span>
-                    </div>
-                  ))}
+                ))}
+              </div>
+            </div>
+          ) : (
+            /* ---- Scanning State ---- */
+            <div style={{ textAlign: "center" }}>
+              {/* Animated scanner orb */}
+              <div style={{ position: "relative", width: "100px", height: "100px", margin: "0 auto 2.5rem" }}>
+                <div style={{
+                  position: "absolute", inset: 0,
+                  borderRadius: "50%",
+                  border: "2px solid #FFD5C2",
+                  animation: "ping 1.5s cubic-bezier(0,0,0.2,1) infinite",
+                }} />
+                <div style={{
+                  position: "absolute", inset: "8px",
+                  borderRadius: "50%",
+                  border: "2px solid #FFB899",
+                  animation: "ping 1.5s cubic-bezier(0,0,0.2,1) infinite 0.3s",
+                }} />
+                <div style={{
+                  position: "absolute", inset: "16px",
+                  borderRadius: "50%",
+                  background: "#FFF0EB",
+                  border: "2px solid #FF642D",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  <Zap size={28} color="#FF642D" fill="#FF642D" />
                 </div>
               </div>
-            ) : (
-              /* ---- Scanning State ---- */
-              <div className="text-center">
-                {/* Animated scanner orb */}
-                <div className="relative w-32 h-32 mx-auto mb-10">
-                  <div className="absolute inset-0 rounded-full border-2 border-blue-500/30 animate-ping" />
-                  <div className="absolute inset-2 rounded-full border-2 border-cyan-500/40" style={{ animation: "ping 1.5s cubic-bezier(0,0,0.2,1) infinite 0.3s" }} />
-                  <div className="absolute inset-4 rounded-full bg-gradient-to-br from-blue-600/20 to-cyan-500/20 border border-blue-500/30 flex items-center justify-center">
-                    <Zap className="w-8 h-8 text-blue-400" />
-                  </div>
+
+              <h2 style={{ fontSize: "1.75rem", fontWeight: 800, color: "#0D0D2B", marginBottom: "0.5rem", letterSpacing: "-0.02em" }}>
+                Analyzing Your Website
+              </h2>
+              <p style={{ fontSize: "1rem", color: "#6B6B8A", marginBottom: "0.5rem" }}>
+                Running comprehensive rebuild diagnostics on{" "}
+                <strong style={{ color: "#0D0D2B" }}>{url.replace(/^https?:\/\//, "")}</strong>
+              </p>
+
+              {/* Progress bar */}
+              <div style={{ maxWidth: "440px", margin: "1.5rem auto 2rem" }}>
+                <div style={{ height: "6px", background: "#F0F0F5", borderRadius: "100px", overflow: "hidden" }}>
+                  <div style={{
+                    height: "100%",
+                    background: "#FF642D",
+                    borderRadius: "100px",
+                    width: `${progress}%`,
+                    transition: "width 0.5s ease",
+                  }} />
                 </div>
-
-                <h2 className="text-3xl font-bold text-white mb-2">Analyzing Your Website</h2>
-                <p className="text-zinc-400 mb-2">
-                  Running comprehensive rebuild diagnostics on{" "}
-                  <span className="text-white font-medium">{url.replace(/^https?:\/\//, "")}</span>
-                </p>
-
-                {/* Progress bar */}
-                <div className="max-w-md mx-auto mb-8">
-                  <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-blue-600 to-cyan-500 rounded-full transition-all duration-500"
-                      style={{ width: `${progress}%` }}
-                    />
-                  </div>
-                  <div className="flex justify-between mt-2 text-xs text-zinc-500">
-                    <span>{currentStep}</span>
-                    <span>{progress}%</span>
-                  </div>
+                <div style={{ display: "flex", justifyContent: "space-between", marginTop: "0.5rem" }}>
+                  <span style={{ fontSize: "0.8125rem", color: "#9999AA" }}>{currentStep}</span>
+                  <span style={{ fontSize: "0.8125rem", color: "#FF642D", fontWeight: 600 }}>{progress}%</span>
                 </div>
+              </div>
 
-                {/* Step list */}
-                <div className="max-w-sm mx-auto space-y-3">
-                  {scanSteps.map((step, i) => {
-                    const isComplete = completedSteps.includes(i);
-                    const isCurrent = !isComplete && progress > (i / scanSteps.length) * 100;
-                    return (
-                      <div
-                        key={i}
-                        className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ${
-                          isComplete ? "glass-card opacity-60" : isCurrent ? "glass-card border-blue-500/30" : "opacity-30"
-                        }`}
-                      >
-                        <div className={`flex-shrink-0 ${isComplete ? "text-green-400" : isCurrent ? "text-blue-400" : "text-zinc-600"}`}>
-                          {isComplete ? <CheckCircle className="w-5 h-5" /> : step.icon}
-                        </div>
-                        <span className={`text-sm font-medium ${isComplete ? "text-zinc-400" : isCurrent ? "text-white" : "text-zinc-600"}`}>
-                          {step.label}
-                        </span>
-                        {isCurrent && (
-                          <div className="ml-auto flex gap-1">
-                            {[0, 1, 2].map((j) => (
-                              <div
-                                key={j}
-                                className="w-1.5 h-1.5 rounded-full bg-blue-400"
-                                style={{ animation: `bounce 1s infinite ${j * 0.2}s` }}
-                              />
-                            ))}
-                          </div>
-                        )}
+              {/* Step list */}
+              <div style={{ maxWidth: "380px", margin: "0 auto", display: "flex", flexDirection: "column", gap: "0.625rem" }}>
+                {scanSteps.map((step, i) => {
+                  const isComplete = completedSteps.includes(i);
+                  const isCurrent = !isComplete && progress > (i / scanSteps.length) * 100;
+                  return (
+                    <div key={i} style={{
+                      display: "flex", alignItems: "center", gap: "0.75rem",
+                      padding: "0.75rem 1rem",
+                      borderRadius: "10px",
+                      background: isCurrent ? "#FFF0EB" : isComplete ? "#F7F7FA" : "transparent",
+                      border: isCurrent ? "1px solid #FFD5C2" : isComplete ? "1px solid #E5E5EA" : "1px solid transparent",
+                      opacity: (!isComplete && !isCurrent) ? 0.35 : 1,
+                      transition: "all 0.3s",
+                    }}>
+                      <div style={{ flexShrink: 0, color: isComplete ? "#16A34A" : isCurrent ? "#FF642D" : "#9999AA" }}>
+                        {isComplete ? <CheckCircle size={18} /> : step.icon}
                       </div>
-                    );
-                  })}
-                </div>
+                      <span style={{ fontSize: "0.9rem", fontWeight: 500, color: isCurrent ? "#0D0D2B" : isComplete ? "#6B6B8A" : "#9999AA", flex: 1, textAlign: "left" }}>
+                        {step.label}
+                      </span>
+                      {isCurrent && (
+                        <div style={{ display: "flex", gap: "3px" }}>
+                          {[0, 1, 2].map((j) => (
+                            <div key={j} style={{
+                              width: "5px", height: "5px", borderRadius: "50%",
+                              background: "#FF642D",
+                              animation: `bounce 1s infinite ${j * 0.2}s`,
+                            }} />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
 
       {!scanning && <Footer />}
+
+      <style>{`
+        @keyframes ping {
+          75%, 100% { transform: scale(1.5); opacity: 0; }
+        }
+        @keyframes bounce {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-4px); }
+        }
+      `}</style>
     </div>
   );
 }

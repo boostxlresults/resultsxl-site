@@ -1,20 +1,20 @@
-/* =============================================================
-   ResultsXL — Dark Technical Premium "The Engine Room"
-   Design Philosophy:
-   - Deep near-black background (#09090B) with dark card surfaces
-   - Blue-to-cyan gradient accents (#3B82F6 → #06B6D4) for tech/AI signals
-   - Glassmorphism cards with subtle borders and inner glow
-   - Geist typography for clean technical authority
-   - Micro-detail obsession: every border, shadow, radius is intentional
-   ============================================================= */
+/* ============================================================
+   ResultsXL — SEMrush-inspired Design System
+   
+   Design Philosophy: Bright, clean, enterprise SaaS
+   - Pure white backgrounds with light gray sections
+   - Deep navy text (#0D0D2B) for maximum readability
+   - Orange/coral CTAs (#FF642D) for high-contrast actions
+   - Inter font, large sizes, generous line-height
+   - Wide layout (1280px), lots of breathing room
+   ============================================================ */
 
 @import "tailwindcss";
 @import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
 
-/* Geist Font */
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+/* Google Fonts loaded in index.html */
 
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
@@ -40,62 +40,47 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --color-chart-1: var(--chart-1);
-  --color-chart-2: var(--chart-2);
-  --color-chart-3: var(--chart-3);
-  --color-chart-4: var(--chart-4);
-  --color-chart-5: var(--chart-5);
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-ring: var(--sidebar-ring);
 }
 
 :root {
+  /* SEMrush-style bright white theme */
   --radius: 0.75rem;
-  
-  /* Dark theme as default */
-  --background: oklch(0.09 0.005 285);
-  --foreground: oklch(0.97 0.002 285);
-  --card: oklch(0.13 0.006 285);
-  --card-foreground: oklch(0.97 0.002 285);
-  --popover: oklch(0.13 0.006 285);
-  --popover-foreground: oklch(0.97 0.002 285);
-  
-  /* Blue primary */
-  --primary: oklch(0.6 0.2 250);
-  --primary-foreground: oklch(0.98 0.002 285);
-  
-  --secondary: oklch(0.18 0.006 285);
-  --secondary-foreground: oklch(0.85 0.005 285);
-  --muted: oklch(0.18 0.006 285);
-  --muted-foreground: oklch(0.6 0.01 285);
-  --accent: oklch(0.18 0.006 285);
-  --accent-foreground: oklch(0.97 0.002 285);
-  --destructive: oklch(0.65 0.22 25);
-  --destructive-foreground: oklch(0.98 0 0);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 12%);
-  --ring: oklch(0.6 0.2 250);
-  
-  --chart-1: oklch(0.6 0.2 250);
-  --chart-2: oklch(0.65 0.18 200);
-  --chart-3: oklch(0.55 0.22 270);
-  --chart-4: oklch(0.7 0.15 160);
-  --chart-5: oklch(0.75 0.12 80);
-  
-  --sidebar: oklch(0.11 0.005 285);
-  --sidebar-foreground: oklch(0.97 0.002 285);
-  --sidebar-primary: oklch(0.6 0.2 250);
-  --sidebar-primary-foreground: oklch(0.98 0.002 285);
-  --sidebar-accent: oklch(0.18 0.006 285);
-  --sidebar-accent-foreground: oklch(0.97 0.002 285);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.6 0.2 250);
+
+  --background: oklch(1 0 0);                    /* #FFFFFF pure white */
+  --foreground: oklch(0.1 0.02 265);             /* #0D0D2B deep navy */
+  --card: oklch(1 0 0);                          /* white cards */
+  --card-foreground: oklch(0.1 0.02 265);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.1 0.02 265);
+
+  /* Primary: orange/coral CTA — SEMrush signature */
+  --primary: oklch(0.65 0.22 35);               /* #FF642D orange */
+  --primary-foreground: oklch(1 0 0);           /* white text on orange */
+
+  /* Secondary: light gray for subtle backgrounds */
+  --secondary: oklch(0.97 0.002 265);           /* #F5F5F7 */
+  --secondary-foreground: oklch(0.1 0.02 265);
+
+  --muted: oklch(0.96 0.003 265);               /* #F0F0F5 */
+  --muted-foreground: oklch(0.45 0.015 265);    /* medium gray text */
+
+  /* Accent: blue for links and highlights */
+  --accent: oklch(0.55 0.2 255);               /* #1A73E8 blue */
+  --accent-foreground: oklch(1 0 0);
+
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.985 0 0);
+
+  --border: oklch(0.9 0.005 265);              /* #E5E5EA light border */
+  --input: oklch(0.9 0.005 265);
+  --ring: oklch(0.55 0.2 255);
+
+  /* Chart colors */
+  --chart-1: oklch(0.65 0.22 35);
+  --chart-2: oklch(0.55 0.2 255);
+  --chart-3: oklch(0.5 0.18 145);
+  --chart-4: oklch(0.7 0.15 85);
+  --chart-5: oklch(0.6 0.2 305);
 }
 
 @layer base {
@@ -104,35 +89,37 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-family: 'Space Grotesk', system-ui, -apple-system, sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 18px;
+    line-height: 1.6;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Inter', sans-serif;
+    font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    color: oklch(0.1 0.02 265);
   }
   button:not(:disabled),
   [role="button"]:not([aria-disabled="true"]),
   [type="button"]:not(:disabled),
   [type="submit"]:not(:disabled),
-  [type="reset"]:not(:disabled),
   a[href],
-  select:not(:disabled),
-  input[type="checkbox"]:not(:disabled),
-  input[type="radio"]:not(:disabled) {
+  select:not(:disabled) {
     @apply cursor-pointer;
-  }
-  h1, h2, h3, h4, h5, h6 {
-    font-family: 'Space Grotesk', system-ui, sans-serif;
-    font-weight: 700;
-    letter-spacing: -0.02em;
   }
 }
 
 @layer components {
+  /* Wide container — SEMrush uses ~1280px max */
   .container {
     width: 100%;
     margin-left: auto;
     margin-right: auto;
-    padding-left: 1rem;
-    padding-right: 1rem;
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
   }
 
   .flex {
@@ -142,102 +129,81 @@
 
   @media (min-width: 640px) {
     .container {
-      padding-left: 1.5rem;
-      padding-right: 1.5rem;
+      padding-left: 2rem;
+      padding-right: 2rem;
     }
   }
 
   @media (min-width: 1024px) {
     .container {
-      padding-left: 2rem;
-      padding-right: 2rem;
-      max-width: 1280px;
+      padding-left: 3rem;
+      padding-right: 3rem;
+      max-width: 1320px;
     }
   }
 
-  /* Gradient text utility */
-  .gradient-text {
-    background: linear-gradient(135deg, #3B82F6 0%, #06B6D4 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+  /* SEMrush-style section backgrounds */
+  .section-white { background: #FFFFFF; }
+  .section-gray  { background: #F7F7FA; }
+  .section-navy  { background: #0D0D2B; color: white; }
+
+  /* SEMrush-style CTA button */
+  .btn-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: #FF642D;
+    color: white;
+    font-weight: 700;
+    font-size: 1rem;
+    padding: 0.875rem 2rem;
+    border-radius: 0.5rem;
+    border: none;
+    transition: background 0.2s, transform 0.15s;
+    text-decoration: none;
+  }
+  .btn-cta:hover {
+    background: #e5531f;
+    transform: translateY(-1px);
   }
 
-  /* Glass card */
-  .glass-card {
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+  /* SEMrush-style outline button */
+  .btn-outline {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: transparent;
+    color: #0D0D2B;
+    font-weight: 600;
+    font-size: 1rem;
+    padding: 0.875rem 2rem;
+    border-radius: 0.5rem;
+    border: 2px solid #E5E5EA;
+    transition: border-color 0.2s, background 0.2s;
+    text-decoration: none;
+  }
+  .btn-outline:hover {
+    border-color: #0D0D2B;
+    background: #F7F7FA;
   }
 
-  /* Glow effects */
-  .glow-blue {
-    box-shadow: 0 0 30px rgba(59, 130, 246, 0.3), 0 0 60px rgba(59, 130, 246, 0.1);
+  /* SEMrush-style card */
+  .card-semrush {
+    background: white;
+    border: 1px solid #E5E5EA;
+    border-radius: 1rem;
+    padding: 2rem;
+    transition: box-shadow 0.2s, transform 0.2s;
+  }
+  .card-semrush:hover {
+    box-shadow: 0 8px 32px rgba(0,0,0,0.08);
+    transform: translateY(-2px);
   }
 
-  .glow-cyan {
-    box-shadow: 0 0 30px rgba(6, 182, 212, 0.3), 0 0 60px rgba(6, 182, 212, 0.1);
-  }
-
-  /* Scanner pulse animation */
-  @keyframes scanner-pulse {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4); }
-    50% { box-shadow: 0 0 0 12px rgba(59, 130, 246, 0); }
-  }
-
-  .scanner-pulse {
-    animation: scanner-pulse 2s infinite;
-  }
-
-  /* Scan line animation */
-  @keyframes scan-line {
-    0% { transform: translateX(-100%); }
-    100% { transform: translateX(100%); }
-  }
-
-  .scan-line {
-    animation: scan-line 1.5s ease-in-out infinite;
-  }
-
-  /* Count up animation */
-  @keyframes count-up {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-
-  .count-up {
-    animation: count-up 0.5s ease-out forwards;
-  }
-
-  /* Fade up entrance */
-  @keyframes fade-up {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-
-  .fade-up {
-    animation: fade-up 0.6s ease-out forwards;
-  }
-
-  /* Gradient border */
-  .gradient-border {
-    position: relative;
-    background: linear-gradient(oklch(0.13 0.006 285), oklch(0.13 0.006 285)) padding-box,
-                linear-gradient(135deg, #3B82F6, #06B6D4) border-box;
-    border: 1px solid transparent;
-  }
-
-  /* Score grade colors */
-  .grade-a { color: #22C55E; }
-  .grade-b { color: #84CC16; }
-  .grade-c { color: #EAB308; }
-  .grade-d { color: #F97316; }
-  .grade-f { color: #EF4444; }
-
-  .grade-bg-a { background: rgba(34, 197, 94, 0.1); border-color: rgba(34, 197, 94, 0.3); }
-  .grade-bg-b { background: rgba(132, 204, 22, 0.1); border-color: rgba(132, 204, 22, 0.3); }
-  .grade-bg-c { background: rgba(234, 179, 8, 0.1); border-color: rgba(234, 179, 8, 0.3); }
-  .grade-bg-d { background: rgba(249, 115, 22, 0.1); border-color: rgba(249, 115, 22, 0.3); }
-  .grade-bg-f { background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.3); }
+  /* Grade badge colors */
+  .grade-a { color: #16a34a; background: #dcfce7; }
+  .grade-b { color: #2563eb; background: #dbeafe; }
+  .grade-c { color: #d97706; background: #fef3c7; }
+  .grade-d { color: #ea580c; background: #ffedd5; }
+  .grade-f { color: #dc2626; background: #fee2e2; }
 }

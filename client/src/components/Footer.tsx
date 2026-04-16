@@ -1,41 +1,78 @@
-/* =============================================================
-   ResultsXL Footer — Dark Technical Premium
-   ============================================================= */
+/* ============================================================
+   ResultsXL Footer — SEMrush-style clean dark footer
+   ============================================================ */
 
 import { Link } from "wouter";
 import { Zap, Mail, ExternalLink } from "lucide-react";
 
 export default function Footer() {
   return (
-    <footer className="bg-[#06060A] border-t border-white/8">
-      <div className="container mx-auto px-4 lg:px-8 py-16">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
-          {/* Brand */}
-          <div className="md:col-span-2">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center">
-                <Zap className="w-4 h-4 text-white" />
+    <footer style={{ background: "#0D0D2B", color: "white" }}>
+      <div className="container" style={{ paddingTop: "4rem", paddingBottom: "3rem" }}>
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "2fr 1fr 1fr",
+          gap: "3rem",
+        }} className="footer-grid">
+          {/* Brand column */}
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "1.25rem" }}>
+              <div style={{
+                width: "38px", height: "38px",
+                background: "#FF642D",
+                borderRadius: "9px",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                flexShrink: 0,
+              }}>
+                <Zap size={20} color="white" fill="white" />
               </div>
-              <span className="text-xl font-bold">
-                <span className="gradient-text">Results</span>
-                <span className="text-white">XL</span>
+              <span style={{
+                fontFamily: "Inter, sans-serif",
+                fontWeight: 800,
+                fontSize: "1.4rem",
+                color: "white",
+                letterSpacing: "-0.03em",
+              }}>
+                Results<span style={{ color: "#FF642D" }}>XL</span>
               </span>
             </div>
-            <p className="text-zinc-400 text-sm leading-relaxed max-w-sm">
+            <p style={{
+              fontFamily: "Inter, sans-serif",
+              fontSize: "0.9375rem",
+              color: "rgba(255,255,255,0.55)",
+              lineHeight: 1.7,
+              maxWidth: "320px",
+              marginBottom: "1.5rem",
+            }}>
               We rebuild outdated local business websites into high-performance, AI-search-optimized Next.js applications — at a fraction of the cost of a traditional agency.
             </p>
-            <div className="mt-6 flex items-center gap-2 text-sm text-zinc-500">
-              <Mail className="w-4 h-4" />
-              <a href="mailto:hello@resultsxl.com" className="hover:text-white transition-colors">
-                hello@resultsxl.com
-              </a>
-            </div>
+            <a
+              href="mailto:hello@resultsxl.com"
+              style={{
+                display: "inline-flex", alignItems: "center", gap: "8px",
+                fontFamily: "Inter, sans-serif",
+                fontSize: "0.9375rem",
+                color: "rgba(255,255,255,0.6)",
+                textDecoration: "none",
+              }}
+            >
+              <Mail size={15} />
+              hello@resultsxl.com
+            </a>
           </div>
 
           {/* Services */}
           <div>
-            <h4 className="text-white font-semibold text-sm mb-4">Services</h4>
-            <ul className="space-y-3">
+            <h4 style={{
+              fontFamily: "Inter, sans-serif",
+              fontWeight: 700,
+              fontSize: "0.8125rem",
+              color: "white",
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
+              marginBottom: "1.25rem",
+            }}>Services</h4>
+            <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "0.625rem" }}>
               {[
                 { label: "Website Rebuild Engine", href: "/#how-it-works" },
                 { label: "Free Website Scanner", href: "/scan" },
@@ -44,10 +81,12 @@ export default function Footer() {
                 { label: "Get Started", href: "/get-started" },
               ].map((item) => (
                 <li key={item.label}>
-                  <a
-                    href={item.href}
-                    className="text-zinc-400 hover:text-white text-sm transition-colors"
-                  >
+                  <a href={item.href} style={{
+                    fontFamily: "Inter, sans-serif",
+                    fontSize: "0.9375rem",
+                    color: "rgba(255,255,255,0.55)",
+                    textDecoration: "none",
+                  }}>
                     {item.label}
                   </a>
                 </li>
@@ -57,8 +96,16 @@ export default function Footer() {
 
           {/* Company */}
           <div>
-            <h4 className="text-white font-semibold text-sm mb-4">Company</h4>
-            <ul className="space-y-3">
+            <h4 style={{
+              fontFamily: "Inter, sans-serif",
+              fontWeight: 700,
+              fontSize: "0.8125rem",
+              color: "white",
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
+              marginBottom: "1.25rem",
+            }}>Company</h4>
+            <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "0.625rem" }}>
               {[
                 { label: "BoostXL Platform", href: "https://boostxl.com", external: true },
                 { label: "Free AI SEO Scan", href: "https://boostxl.com/free-scan", external: true },
@@ -70,10 +117,16 @@ export default function Footer() {
                     href={item.href}
                     target={item.external ? "_blank" : undefined}
                     rel={item.external ? "noopener noreferrer" : undefined}
-                    className="text-zinc-400 hover:text-white text-sm transition-colors flex items-center gap-1"
+                    style={{
+                      display: "inline-flex", alignItems: "center", gap: "4px",
+                      fontFamily: "Inter, sans-serif",
+                      fontSize: "0.9375rem",
+                      color: "rgba(255,255,255,0.55)",
+                      textDecoration: "none",
+                    }}
                   >
                     {item.label}
-                    {item.external && <ExternalLink className="w-3 h-3" />}
+                    {item.external && <ExternalLink size={12} />}
                   </a>
                 </li>
               ))}
@@ -81,16 +134,31 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="mt-12 pt-8 border-t border-white/8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-zinc-500 text-sm">
+        {/* Bottom bar */}
+        <div style={{
+          borderTop: "1px solid rgba(255,255,255,0.1)",
+          marginTop: "3rem",
+          paddingTop: "1.5rem",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          flexWrap: "wrap",
+          gap: "1rem",
+        }}>
+          <p style={{ fontFamily: "Inter, sans-serif", fontSize: "0.875rem", color: "rgba(255,255,255,0.35)" }}>
             © {new Date().getFullYear()} ResultsXL (BoostXL). All rights reserved.
           </p>
-          <div className="flex items-center gap-2 text-zinc-500 text-sm">
-            <span>Built with</span>
-            <span className="gradient-text font-semibold">Next.js · TypeScript · Tailwind</span>
-          </div>
+          <p style={{ fontFamily: "Inter, sans-serif", fontSize: "0.875rem", color: "rgba(255,255,255,0.35)" }}>
+            Built with Next.js · TypeScript · Tailwind
+          </p>
         </div>
       </div>
+
+      <style>{`
+        @media (max-width: 768px) {
+          .footer-grid { grid-template-columns: 1fr !important; gap: 2rem !important; }
+        }
+      `}</style>
     </footer>
   );
 }

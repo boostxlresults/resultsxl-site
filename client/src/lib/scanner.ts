@@ -107,59 +107,57 @@ export function gradeFromScore(score: number): "A" | "B" | "C" | "D" | "F" {
 }
 
 /* ---- Utility: fetch via CORS proxy ---- */
-async function fetchViaProxy(url: string, timeoutMs = 12000): Promise<{ html: string; status: number; headers: Record<string, string>; loadTime: number }> {
+async function fetchViaProxy(url: string, timeoutMs = 15000): Promise<{ html: string; status: number; headers: Record<string, string>; loadTime: number }> {
   const start = Date.now();
-  
-  // Strategy 1: corsproxy.io — reliable, works from browser, no auth needed
-  try {
-    const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), timeoutMs);
-    const res = await fetch(proxyUrl, { signal: controller.signal });
-    clearTimeout(timeout);
-    if (res.ok) {
-      const html = await res.text();
-      const loadTime = Date.now() - start;
-      return { html, status: res.status, headers: {}, loadTime };
-    }
-  } catch { /* fall through */ }
 
-  // Strategy 2: allorigins /get — JSON wrapper (fallback if corsproxy fails)
-  try {
-    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+  // Helper: attempt a fetch and return text if it looks like HTML/content
+  async function attempt(fetchUrl: string, opts?: RequestInit, isJson = false): Promise<{ html: string; status: number; headers: Record<string, string> } | null> {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), timeoutMs);
-    const res = await fetch(proxyUrl, { signal: controller.signal });
-    clearTimeout(timeout);
-    if (res.ok) {
-      const data = await res.json();
-      const loadTime = Date.now() - start;
-      return {
-        html: data.contents || "",
-        status: data.status?.http_code || 200,
-        headers: {},
-        loadTime,
-      };
+    const t = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(fetchUrl, { ...opts, signal: controller.signal });
+      clearTimeout(t);
+      if (isJson) {
+        const data = await res.json();
+        const text = data.contents || "";
+        if (text && text.length > 100) {
+          return { html: text, status: data.status?.http_code || 200, headers: {} };
+        }
+        return null;
+      }
+      const text = await res.text();
+      // Accept if we got actual HTML content (even on non-200 status)
+      if (text && text.length > 100 && !text.includes('"error"')) {
+        const headers: Record<string, string> = {};
+        res.headers.forEach((v, k) => { headers[k] = v; });
+        return { html: text, status: res.status, headers };
+      }
+      return null;
+    } catch {
+      clearTimeout(t);
+      return null;
     }
-  } catch { /* fall through */ }
+  }
 
-  // Strategy 3: direct fetch (works for some sites with permissive CORS)
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), timeoutMs);
-    const res = await fetch(url, {
-      signal: controller.signal,
-      headers: { "Accept": "text/html,application/xhtml+xml,*/*" }
-    });
-    clearTimeout(timeout);
-    if (res.ok) {
-      const html = await res.text();
-      const loadTime = Date.now() - start;
-      const headers: Record<string, string> = {};
-      res.headers.forEach((v, k) => { headers[k] = v; });
-      return { html, status: res.status, headers, loadTime };
-    }
-  } catch { /* fall through */ }
+  // Strategy 1: corsproxy.io — works from browser, no auth needed
+  const r1 = await attempt(`https://corsproxy.io/?${encodeURIComponent(url)}`);
+  if (r1) return { ...r1, loadTime: Date.now() - start };
+
+  // Strategy 2: allorigins /get — JSON wrapper with contents field
+  const r2 = await attempt(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`, {}, true);
+  if (r2) return { ...r2, loadTime: Date.now() - start };
+
+  // Strategy 3: allorigins /raw — direct raw response
+  const r3 = await attempt(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`);
+  if (r3) return { ...r3, loadTime: Date.now() - start };
+
+  // Strategy 4: htmlpreview proxy (another reliable option)
+  const r4 = await attempt(`https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url)}`);
+  if (r4) return { ...r4, loadTime: Date.now() - start };
+
+  // Strategy 5: direct fetch (works if site has permissive CORS)
+  const r5 = await attempt(url, { headers: { "Accept": "text/html,application/xhtml+xml,*/*", "User-Agent": "Mozilla/5.0" } });
+  if (r5) return { ...r5, loadTime: Date.now() - start };
 
   return { html: "", status: 0, headers: {}, loadTime: Date.now() - start };
 }

@@ -1,7 +1,8 @@
-/* =============================================================
-   ResultsXL Navbar — Dark Technical Premium
-   Sticky dark nav with gradient logo text and CTA button
-   ============================================================= */
+/* ============================================================
+   ResultsXL Navbar — SEMrush-style bright white sticky nav
+   - White background, deep navy text, orange CTA
+   - Large, airy, easy to read
+   ============================================================ */
 
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
@@ -21,7 +22,7 @@ export default function Navbar() {
   const [location] = useLocation();
 
   useEffect(() => {
-    const handleScroll = () => setIsScrolled(window.scrollY > 20);
+    const handleScroll = () => setIsScrolled(window.scrollY > 10);
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
@@ -41,27 +42,45 @@ export default function Navbar() {
 
   return (
     <nav
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        isScrolled
-          ? "bg-[#09090B]/95 backdrop-blur-xl border-b border-white/10 shadow-2xl"
-          : "bg-transparent"
-      }`}
+      style={{
+        position: "sticky",
+        top: 0,
+        zIndex: 50,
+        background: "white",
+        borderBottom: isScrolled ? "1px solid #E5E5EA" : "1px solid transparent",
+        boxShadow: isScrolled ? "0 2px 16px rgba(0,0,0,0.07)" : "none",
+        transition: "box-shadow 0.2s, border-color 0.2s",
+      }}
     >
-      <div className="container mx-auto px-4 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+      <div className="container">
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", height: "72px" }}>
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 group">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center shadow-lg group-hover:shadow-blue-500/40 transition-shadow">
-              <Zap className="w-4 h-4 text-white" />
+          <Link href="/">
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer", textDecoration: "none" }}>
+              <div style={{
+                width: "38px", height: "38px",
+                background: "#FF642D",
+                borderRadius: "9px",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                flexShrink: 0,
+              }}>
+                <Zap size={20} color="white" fill="white" />
+              </div>
+              <span style={{
+                fontFamily: "Inter, sans-serif",
+                fontWeight: 800,
+                fontSize: "1.4rem",
+                color: "#0D0D2B",
+                letterSpacing: "-0.03em",
+                lineHeight: 1,
+              }}>
+                Results<span style={{ color: "#FF642D" }}>XL</span>
+              </span>
             </div>
-            <span className="text-xl font-bold">
-              <span className="gradient-text">Results</span>
-              <span className="text-white">XL</span>
-            </span>
           </Link>
 
-          {/* Desktop Nav */}
-          <div className="hidden md:flex items-center gap-1">
+          {/* Desktop nav links */}
+          <div style={{ display: "flex", alignItems: "center", gap: "4px" }} className="hidden md:flex">
             {navLinks.map((link) => (
               <a
                 key={link.href}
@@ -72,41 +91,75 @@ export default function Navbar() {
                     handleNavClick(link.href);
                   }
                 }}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                  location === link.href && !link.href.startsWith("/#")
-                    ? "text-white bg-white/10"
-                    : "text-zinc-400 hover:text-white hover:bg-white/5"
-                }`}
+                style={{
+                  fontFamily: "Inter, sans-serif",
+                  fontWeight: 500,
+                  fontSize: "0.9375rem",
+                  color: (location === link.href && !link.href.startsWith("/#")) ? "#FF642D" : "#3D3D5C",
+                  padding: "0.5rem 0.875rem",
+                  borderRadius: "8px",
+                  textDecoration: "none",
+                  transition: "color 0.15s, background 0.15s",
+                  whiteSpace: "nowrap",
+                }}
+                onMouseEnter={(e) => {
+                  const el = e.currentTarget as HTMLElement;
+                  el.style.background = "#F7F7FA";
+                  el.style.color = "#FF642D";
+                }}
+                onMouseLeave={(e) => {
+                  const el = e.currentTarget as HTMLElement;
+                  el.style.background = "transparent";
+                  el.style.color = (location === link.href && !link.href.startsWith("/#")) ? "#FF642D" : "#3D3D5C";
+                }}
               >
                 {link.label}
               </a>
             ))}
           </div>
 
-          {/* CTA */}
-          <div className="hidden md:flex items-center gap-3">
-            <Link
-              href="/scan"
-              className="px-4 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-cyan-500 text-white text-sm font-semibold hover:from-blue-500 hover:to-cyan-400 transition-all duration-200 shadow-lg hover:shadow-blue-500/30"
-            >
-              Scan My Website Free
+          {/* CTA Button */}
+          <div className="hidden md:flex">
+            <Link href="/scan">
+              <button style={{
+                display: "flex", alignItems: "center", gap: "8px",
+                background: "#FF642D",
+                color: "white",
+                fontFamily: "Inter, sans-serif",
+                fontWeight: 700,
+                fontSize: "0.9375rem",
+                padding: "0.625rem 1.375rem",
+                borderRadius: "8px",
+                border: "none",
+                cursor: "pointer",
+                transition: "background 0.2s, transform 0.15s",
+                whiteSpace: "nowrap",
+              }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "#e5531f"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "#FF642D"; }}
+              >
+                <Zap size={15} />
+                Scan My Website Free
+              </button>
             </Link>
           </div>
 
           {/* Mobile toggle */}
           <button
-            className="md:hidden p-2 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 transition-colors"
+            className="md:hidden"
+            style={{ padding: "8px", color: "#0D0D2B", background: "none", border: "none", cursor: "pointer" }}
             onClick={() => setMobileOpen(!mobileOpen)}
+            aria-label="Toggle menu"
           >
-            {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            {mobileOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
         </div>
       </div>
 
       {/* Mobile menu */}
       {mobileOpen && (
-        <div className="md:hidden bg-[#09090B]/98 backdrop-blur-xl border-b border-white/10">
-          <div className="container mx-auto px-4 py-4 flex flex-col gap-1">
+        <div className="md:hidden" style={{ background: "white", borderTop: "1px solid #E5E5EA", padding: "1rem 1.5rem 1.5rem" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
             {navLinks.map((link) => (
               <a
                 key={link.href}
@@ -119,17 +172,38 @@ export default function Navbar() {
                     setMobileOpen(false);
                   }
                 }}
-                className="px-4 py-3 rounded-lg text-sm font-medium text-zinc-300 hover:text-white hover:bg-white/5 transition-colors"
+                style={{
+                  fontFamily: "Inter, sans-serif",
+                  fontWeight: 500,
+                  fontSize: "1rem",
+                  color: "#0D0D2B",
+                  padding: "0.75rem 1rem",
+                  borderRadius: "8px",
+                  textDecoration: "none",
+                  display: "block",
+                }}
               >
                 {link.label}
               </a>
             ))}
-            <Link
-              href="/scan"
-              onClick={() => setMobileOpen(false)}
-              className="mt-2 px-4 py-3 rounded-lg bg-gradient-to-r from-blue-600 to-cyan-500 text-white text-sm font-semibold text-center"
-            >
-              Scan My Website Free
+            <Link href="/scan" onClick={() => setMobileOpen(false)}>
+              <button style={{
+                display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
+                width: "100%",
+                background: "#FF642D",
+                color: "white",
+                fontFamily: "Inter, sans-serif",
+                fontWeight: 700,
+                fontSize: "1rem",
+                padding: "0.875rem",
+                borderRadius: "8px",
+                border: "none",
+                cursor: "pointer",
+                marginTop: "0.75rem",
+              }}>
+                <Zap size={16} />
+                Scan My Website Free
+              </button>
             </Link>
           </div>
         </div>
