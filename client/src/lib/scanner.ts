@@ -170,22 +170,57 @@ async function fetchText(url: string, timeoutMs = 8000): Promise<string> {
   }
 }
 
-/* ---- Parse all <loc> URLs from a sitemap XML string ---- */
+/* ---- Parse all <loc> URLs from a sitemap XML string — returns full URLs ---- */
 function parseSitemapLocs(xml: string, domain: string): string[] {
-  const locs: string[] = [];
-  const matches = xml.match(/<loc[^>]*>(.*?)<\/loc>/gi) || [];
+    const locs: string[] = [];
+  // Strip CDATA wrappers if presentent
+  const cleaned = xml.replace(/<\!\[CDATA\[([\s\S]*?)\]\]>/g, '$1');
+  const matches = cleaned.match(/<loc[^>]*>([^<]+)<\/loc>/gi) || [];
   for (const match of matches) {
     const raw = match.replace(/<\/?loc[^>]*>/gi, "").trim();
     // Decode HTML entities
-    const url = raw.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">");
+    const url = raw.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").trim();
     try {
       const parsed = new URL(url);
       if (parsed.hostname.replace(/^www\./, "") === domain.replace(/^www\./,"")) {
-        locs.push(parsed.pathname + (parsed.search || ""));
+        locs.push(url); // return full URL
       }
     } catch { /* ignore */ }
   }
   return locs;
+}
+
+/* ---- Parse paths only (for content page classification) ---- */
+function parseSitemapPaths(xml: string, domain: string): string[] {
+  return parseSitemapLocs(xml, domain).map(url => {
+    try { return new URL(url).pathname; } catch { return url; }
+  });
+}
+
+/* ---- Extract sub-sitemap URLs from a sitemap index ---- */
+function extractSubSitemapUrls(xml: string): string[] {
+  // A sitemap index has <sitemap><loc>...</loc></sitemap> blocks
+  // Strip CDATA wrappers if present
+  const cleaned = xml.replace(/<\!\[CDATA\[([\s\S]*?)\]\]>/g, '$1');
+  const urls: string[] = [];
+  // Match all <loc> inside <sitemap> blocks
+  const sitemapBlocks = cleaned.match(/<sitemap[^>]*>[\s\S]*?<\/sitemap>/gi) || [];
+  for (const block of sitemapBlocks) {
+    const locMatch = block.match(/<loc[^>]*>([^<]+)<\/loc>/i);
+    if (locMatch) {
+      const url = locMatch[1].replace(/&amp;/g, "&").trim();
+      if (url.startsWith("http")) urls.push(url);
+    }
+  }
+  // Fallback: if no <sitemap> blocks found, grab any .xml <loc> entries
+  if (urls.length === 0) {
+    const allLocs = cleaned.match(/<loc[^>]*>([^<]+)<\/loc>/gi) || [];
+    for (const m of allLocs) {
+      const url = m.replace(/<\/?loc[^>]*>/gi, "").replace(/&amp;/g, "&").trim();
+      if (url.endsWith(".xml") && url.startsWith("http")) urls.push(url);
+    }
+  }
+  return urls;
 }
 
 /* ---- Discover sitemap URL from robots.txt ---- */
@@ -657,39 +692,37 @@ async function countPages(baseUrl: string, html: string): Promise<PageCountResul
   }
 
   // Process each valid sitemap
-  for (const { xml } of validSitemaps) {
-    // Check if it's a sitemap index (contains <sitemap> elements pointing to sub-sitemaps)
-    const isSitemapIndex = xml.includes("<sitemapindex") || xml.includes("<sitemap>");
+  const processedSitemapUrls = new Set<string>();
+  
+  async function processSitemap(xml: string): Promise<void> {
+    // Detect if this is a sitemap index (has <sitemapindex> tag or <sitemap> child elements)
+    const isSitemapIndex = /<sitemapindex/i.test(xml) || /<sitemap>[\s\S]*?<loc>/i.test(xml);
 
     if (isSitemapIndex) {
-      // Extract sub-sitemap URLs and fetch them in parallel
-      const subSitemapLocs = parseSitemapLocs(xml, domain);
-      // Also grab full URLs for sub-sitemaps that may be on the same domain
-      const subSitemapFullUrls: string[] = [];
-      const subMatches = xml.match(/<loc[^>]*>(.*?)<\/loc>/gi) || [];
-      for (const m of subMatches) {
-        const raw = m.replace(/<\/?loc[^>]*>/gi, "").trim();
-        if (raw.includes(".xml")) subSitemapFullUrls.push(raw);
-      }
-
+      // Extract sub-sitemap full URLs and fetch them in parallel
+      const subUrls = extractSubSitemapUrls(xml);
+      const unprocessed = subUrls.filter(u => !processedSitemapUrls.has(u));
+      unprocessed.forEach(u => processedSitemapUrls.add(u));
+      
       const subResults = await Promise.allSettled(
-        subSitemapFullUrls.slice(0, 20).map(u => fetchText(u, 6000))
+        unprocessed.slice(0, 30).map(u => fetchText(u, 8000))
       );
       for (const sub of subResults) {
-        if (sub.status === "fulfilled" && sub.value) {
-          const locs = parseSitemapLocs(sub.value, domain);
-          locs.forEach(p => allPaths.add(p));
+        if (sub.status === "fulfilled" && sub.value && sub.value.includes("<loc")) {
+          await processSitemap(sub.value);
         }
       }
-      // Also add any locs directly in the index (some indexes list pages directly)
-      subSitemapLocs.forEach(p => { if (!p.endsWith(".xml")) allPaths.add(p); });
       sitemapFound = true;
     } else {
-      // Regular sitemap — parse all <loc> entries
-      const locs = parseSitemapLocs(xml, domain);
-      locs.forEach(p => allPaths.add(p));
-      if (locs.length > 0) sitemapFound = true;
+      // Regular sitemap — parse all <loc> page entries
+      const paths = parseSitemapPaths(xml, domain);
+      paths.forEach(p => allPaths.add(p));
+      if (paths.length > 0) sitemapFound = true;
     }
+  }
+
+  for (const { xml } of validSitemaps) {
+    await processSitemap(xml);
   }
 
   /* ================================================================
@@ -697,12 +730,11 @@ async function countPages(baseUrl: string, html: string): Promise<PageCountResul
      ================================================================ */
   if (!sitemapFound) {
     const robotsSitemapUrl = await discoverSitemapFromRobots(baseUrl);
-    if (robotsSitemapUrl) {
-      const xml = await fetchText(robotsSitemapUrl, 6000);
-      if (xml) {
-        const locs = parseSitemapLocs(xml, domain);
-        locs.forEach(p => allPaths.add(p));
-        if (locs.length > 0) sitemapFound = true;
+    if (robotsSitemapUrl && !processedSitemapUrls.has(robotsSitemapUrl)) {
+      processedSitemapUrls.add(robotsSitemapUrl);
+      const xml = await fetchText(robotsSitemapUrl, 8000);
+      if (xml && xml.includes("<loc")) {
+        await processSitemap(xml);
       }
     }
   }
