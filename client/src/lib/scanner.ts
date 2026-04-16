@@ -170,6 +170,73 @@ async function fetchText(url: string, timeoutMs = 8000): Promise<string> {
   }
 }
 
+/* ---- Dedicated sitemap XML fetcher — tries multiple proxy strategies ---- */
+async function fetchSitemapXml(url: string, timeoutMs = 10000): Promise<string> {
+  const controllers: ReturnType<typeof setTimeout>[] = [];
+  const abort = () => { controllers.forEach(clearTimeout); };
+
+  // Strategy 1: allorigins /raw — returns raw XML directly (best for XML files)
+  try {
+    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), timeoutMs);
+    controllers.push(t);
+    const res = await fetch(proxyUrl, { signal: controller.signal });
+    clearTimeout(t);
+    if (res.ok) {
+      const text = await res.text();
+      if (text && (text.includes("<loc") || text.includes("<sitemap") || text.includes("<?xml"))) {
+        return text;
+      }
+    }
+  } catch { /* fall through */ }
+
+  // Strategy 2: allorigins /get — returns JSON wrapper with contents field
+  try {
+    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), timeoutMs);
+    controllers.push(t);
+    const res = await fetch(proxyUrl, { signal: controller.signal });
+    clearTimeout(t);
+    if (res.ok) {
+      const data = await res.json();
+      const text = data.contents || "";
+      if (text && text.includes("<loc")) return text;
+    }
+  } catch { /* fall through */ }
+
+  // Strategy 3: direct fetch (works if site has permissive CORS)
+  try {
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), timeoutMs);
+    controllers.push(t);
+    const res = await fetch(url, { signal: controller.signal, headers: { "Accept": "application/xml,text/xml,*/*" } });
+    clearTimeout(t);
+    if (res.ok) {
+      const text = await res.text();
+      if (text && text.includes("<loc")) return text;
+    }
+  } catch { /* fall through */ }
+
+  // Strategy 4: thingproxy as last resort
+  try {
+    const proxyUrl = `https://thingproxy.freeboard.io/fetch/${url}`;
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), timeoutMs);
+    controllers.push(t);
+    const res = await fetch(proxyUrl, { signal: controller.signal });
+    clearTimeout(t);
+    if (res.ok) {
+      const text = await res.text();
+      if (text && text.includes("<loc")) return text;
+    }
+  } catch { /* fall through */ }
+
+  abort();
+  return "";
+}
+
 /* ---- Parse all <loc> URLs from a sitemap XML string — returns full URLs ---- */
 function parseSitemapLocs(xml: string, domain: string): string[] {
     const locs: string[] = [];
@@ -673,19 +740,24 @@ async function countPages(baseUrl: string, html: string): Promise<PageCountResul
     "/page-sitemap.xml",
   ];
 
-  // Fetch all common sitemap paths in parallel (fast!)
+  // Fetch all common sitemap paths in parallel using the dedicated sitemap fetcher
   const sitemapResults = await Promise.allSettled(
     commonSitemapPaths.map(path =>
-      fetchText(`${baseUrl}${path}`, 6000).then(xml => ({ path, xml }))
+      fetchSitemapXml(`${baseUrl}${path}`, 8000).then(xml => ({ path, xml }))
     )
   );
 
-  // Collect all valid sitemaps (those containing <loc> or <sitemap>)
+  // Collect all valid sitemaps (those containing <loc> or <sitemap> index tags)
   const validSitemaps: { path: string; xml: string }[] = [];
+  const seenXml = new Set<string>();
   for (const result of sitemapResults) {
     if (result.status === "fulfilled" && result.value.xml) {
       const xml = result.value.xml;
-      if (xml.includes("<loc>") || xml.includes("<loc ")) {
+      // Deduplicate by first 200 chars (catches redirect duplicates like sitemap.xml → sitemap_index.xml)
+      const fingerprint = xml.slice(0, 200).trim();
+      if (seenXml.has(fingerprint)) continue;
+      seenXml.add(fingerprint);
+      if (xml.includes("<loc") || xml.includes("<sitemap")) {
         validSitemaps.push(result.value);
       }
     }
@@ -705,7 +777,7 @@ async function countPages(baseUrl: string, html: string): Promise<PageCountResul
       unprocessed.forEach(u => processedSitemapUrls.add(u));
       
       const subResults = await Promise.allSettled(
-        unprocessed.slice(0, 30).map(u => fetchText(u, 8000))
+        unprocessed.slice(0, 30).map(u => fetchSitemapXml(u, 10000))
       );
       for (const sub of subResults) {
         if (sub.status === "fulfilled" && sub.value && sub.value.includes("<loc")) {
@@ -732,7 +804,7 @@ async function countPages(baseUrl: string, html: string): Promise<PageCountResul
     const robotsSitemapUrl = await discoverSitemapFromRobots(baseUrl);
     if (robotsSitemapUrl && !processedSitemapUrls.has(robotsSitemapUrl)) {
       processedSitemapUrls.add(robotsSitemapUrl);
-      const xml = await fetchText(robotsSitemapUrl, 8000);
+      const xml = await fetchSitemapXml(robotsSitemapUrl, 10000);
       if (xml && xml.includes("<loc")) {
         await processSitemap(xml);
       }
