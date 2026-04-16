@@ -110,54 +110,58 @@ export function gradeFromScore(score: number): "A" | "B" | "C" | "D" | "F" {
 async function fetchViaProxy(url: string, timeoutMs = 12000): Promise<{ html: string; status: number; headers: Record<string, string>; loadTime: number }> {
   const start = Date.now();
   
-  // Try direct fetch first (works for some sites)
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), timeoutMs);
-    const res = await fetch(url, {
-      signal: controller.signal,
-      headers: { "User-Agent": "ResultsXL-Scanner/1.0" }
-    });
-    clearTimeout(timeout);
-    const html = await res.text();
-    const loadTime = Date.now() - start;
-    const headers: Record<string, string> = {};
-    res.headers.forEach((v, k) => { headers[k] = v; });
-    return { html, status: res.status, headers, loadTime };
-  } catch {
-    // Fall back to allorigins proxy
-  }
-
-  try {
-    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), timeoutMs);
-    const res = await fetch(proxyUrl, { signal: controller.signal });
-    clearTimeout(timeout);
-    const data = await res.json();
-    const loadTime = Date.now() - start;
-    return {
-      html: data.contents || "",
-      status: data.status?.http_code || 200,
-      headers: {},
-      loadTime,
-    };
-  } catch {
-    // Try corsproxy.io
-  }
-
+  // Strategy 1: corsproxy.io — reliable, works from browser, no auth needed
   try {
     const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
     const res = await fetch(proxyUrl, { signal: controller.signal });
     clearTimeout(timeout);
-    const html = await res.text();
-    const loadTime = Date.now() - start;
-    return { html, status: res.status, headers: {}, loadTime };
-  } catch {
-    return { html: "", status: 0, headers: {}, loadTime: Date.now() - start };
-  }
+    if (res.ok) {
+      const html = await res.text();
+      const loadTime = Date.now() - start;
+      return { html, status: res.status, headers: {}, loadTime };
+    }
+  } catch { /* fall through */ }
+
+  // Strategy 2: allorigins /get — JSON wrapper (fallback if corsproxy fails)
+  try {
+    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    const res = await fetch(proxyUrl, { signal: controller.signal });
+    clearTimeout(timeout);
+    if (res.ok) {
+      const data = await res.json();
+      const loadTime = Date.now() - start;
+      return {
+        html: data.contents || "",
+        status: data.status?.http_code || 200,
+        headers: {},
+        loadTime,
+      };
+    }
+  } catch { /* fall through */ }
+
+  // Strategy 3: direct fetch (works for some sites with permissive CORS)
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: { "Accept": "text/html,application/xhtml+xml,*/*" }
+    });
+    clearTimeout(timeout);
+    if (res.ok) {
+      const html = await res.text();
+      const loadTime = Date.now() - start;
+      const headers: Record<string, string> = {};
+      res.headers.forEach((v, k) => { headers[k] = v; });
+      return { html, status: res.status, headers, loadTime };
+    }
+  } catch { /* fall through */ }
+
+  return { html: "", status: 0, headers: {}, loadTime: Date.now() - start };
 }
 
 /* ---- Fast lightweight fetch for sitemaps (shorter timeout) ---- */
@@ -172,32 +176,38 @@ async function fetchText(url: string, timeoutMs = 8000): Promise<string> {
 
 /* ---- Dedicated sitemap XML fetcher — tries multiple proxy strategies ---- */
 async function fetchSitemapXml(url: string, timeoutMs = 10000): Promise<string> {
-  const controllers: ReturnType<typeof setTimeout>[] = [];
-  const abort = () => { controllers.forEach(clearTimeout); };
-
-  // Strategy 1: allorigins /raw — returns raw XML directly (best for XML files)
-  try {
-    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+  // Helper: try a single fetch and return text if it looks like XML
+  async function tryFetch(fetchUrl: string, opts?: RequestInit): Promise<string> {
     const controller = new AbortController();
     const t = setTimeout(() => controller.abort(), timeoutMs);
-    controllers.push(t);
-    const res = await fetch(proxyUrl, { signal: controller.signal });
-    clearTimeout(t);
-    if (res.ok) {
+    try {
+      const res = await fetch(fetchUrl, { ...opts, signal: controller.signal });
+      clearTimeout(t);
+      if (!res.ok) return "";
       const text = await res.text();
       if (text && (text.includes("<loc") || text.includes("<sitemap") || text.includes("<?xml"))) {
         return text;
       }
+      return "";
+    } catch {
+      clearTimeout(t);
+      return "";
     }
-  } catch { /* fall through */ }
+  }
 
-  // Strategy 2: allorigins /get — returns JSON wrapper with contents field
+  // Strategy 1: corsproxy.io — most reliable from browser, no auth needed
+  const r1 = await tryFetch(`https://corsproxy.io/?${encodeURIComponent(url)}`);
+  if (r1) return r1;
+
+  // Strategy 2: allorigins /raw — returns raw XML (when service is up)
+  const r2 = await tryFetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`);
+  if (r2) return r2;
+
+  // Strategy 3: allorigins /get — JSON wrapper fallback
   try {
-    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
     const controller = new AbortController();
     const t = setTimeout(() => controller.abort(), timeoutMs);
-    controllers.push(t);
-    const res = await fetch(proxyUrl, { signal: controller.signal });
+    const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`, { signal: controller.signal });
     clearTimeout(t);
     if (res.ok) {
       const data = await res.json();
@@ -206,34 +216,10 @@ async function fetchSitemapXml(url: string, timeoutMs = 10000): Promise<string> 
     }
   } catch { /* fall through */ }
 
-  // Strategy 3: direct fetch (works if site has permissive CORS)
-  try {
-    const controller = new AbortController();
-    const t = setTimeout(() => controller.abort(), timeoutMs);
-    controllers.push(t);
-    const res = await fetch(url, { signal: controller.signal, headers: { "Accept": "application/xml,text/xml,*/*" } });
-    clearTimeout(t);
-    if (res.ok) {
-      const text = await res.text();
-      if (text && text.includes("<loc")) return text;
-    }
-  } catch { /* fall through */ }
+  // Strategy 4: direct fetch (works if site has permissive CORS headers)
+  const r4 = await tryFetch(url, { headers: { "Accept": "application/xml,text/xml,*/*" } });
+  if (r4) return r4;
 
-  // Strategy 4: thingproxy as last resort
-  try {
-    const proxyUrl = `https://thingproxy.freeboard.io/fetch/${url}`;
-    const controller = new AbortController();
-    const t = setTimeout(() => controller.abort(), timeoutMs);
-    controllers.push(t);
-    const res = await fetch(proxyUrl, { signal: controller.signal });
-    clearTimeout(t);
-    if (res.ok) {
-      const text = await res.text();
-      if (text && text.includes("<loc")) return text;
-    }
-  } catch { /* fall through */ }
-
-  abort();
   return "";
 }
 
